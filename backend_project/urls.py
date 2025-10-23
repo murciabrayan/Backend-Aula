@@ -1,20 +1,24 @@
-from django.contrib import admin
-from django.urls import path
+from django.contrib import admin  # 👈 Falta este import
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from accounts.views import (
+    CustomTokenObtainPairView,
+    UserViewSet,
+    StudentProfileViewSet,
+    TeacherProfileViewSet,
+)
 from rest_framework_simplejwt.views import TokenRefreshView
-from accounts.views import CustomTokenObtainPairView
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def hello(request):
-    return Response({"message": f"Hola {request.user.email}, tu token funciona!"})
+router = DefaultRouter()
+router.register(r'users', UserViewSet)
+router.register(r'students', StudentProfileViewSet)
+router.register(r'teachers', TeacherProfileViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/hello/', hello, name='hello'),  # 👈 endpoint protegido
+    # ❌ Elimina o comenta esta línea:
+    # path('api/hello/', hello, name='hello'),
+    path('api/', include(router.urls)),
 ]
