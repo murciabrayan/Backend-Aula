@@ -145,3 +145,11 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
+# === CONFIGURACIÓN DE EMAIL ===
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'            # o el host SMTP institucional
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'branfer60@gmail.com'   # aquí tu correo real
+EMAIL_HOST_PASSWORD = 'bnla xiox mgzh wjue'  # NO tu contraseña normal
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
