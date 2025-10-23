@@ -7,26 +7,30 @@ from accounts.views import (
     StudentProfileViewSet,
     TeacherProfileViewSet,
 )
+from accounts.views_password_reset import (
+    forgot_password,
+    reset_password,
+)
 from rest_framework_simplejwt.views import TokenRefreshView
-
-# 👇 Importa el ViewSet de cursos
 from courses.views import CourseViewSet
 
-# 🔹 Router principal
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'students', StudentProfileViewSet)
 router.register(r'teachers', TeacherProfileViewSet)
-router.register(r'courses', CourseViewSet)  # 👈 Nuevo endpoint para cursos
+router.register(r'courses', CourseViewSet)
 
-# 🔹 URLs globales
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # 🔑 Autenticación JWT
+    # 🔑 JWT
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
-    #  Endpoints REST
+    # 🔹 API principales
     path('api/', include(router.urls)),
+
+    # 🔹 Recuperación de contraseña
+    path('api/password-reset/', forgot_password, name='forgot_password'),
+    path('api/password-reset/<uidb64>/<token>/', reset_password, name='reset_password'),
 ]
