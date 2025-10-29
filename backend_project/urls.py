@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from accounts.views_profile import user_profile, change_password
+
 from accounts.views import (
     CustomTokenObtainPairView,
     UserViewSet,
@@ -22,6 +24,10 @@ router.register(r'courses', CourseViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # 🔹 Perfil y cambio de contraseña
+    path('api/profile/', user_profile, name='user_profile'),
+    path('api/change-password/', change_password, name='change_password'),
+
 
     # 🔑 JWT
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),

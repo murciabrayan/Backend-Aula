@@ -44,7 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
     student_profile = StudentProfileSerializer(read_only=True)
     teacher_profile = TeacherProfileSerializer(read_only=True)
 
-    # Campos adicionales para crear/editar desde el frontend
+    # Campos adicionales
     grado = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_nombre = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_telefono = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -81,7 +81,7 @@ class UserSerializer(serializers.ModelSerializer):
         role = validated_data.get('role')
         password = validated_data.pop('password', None)
 
-        # Datos de perfil
+        # Extraer los campos del perfil
         grado = validated_data.pop('grado', None)
         acudiente_nombre = validated_data.pop('acudiente_nombre', None)
         acudiente_telefono = validated_data.pop('acudiente_telefono', None)
@@ -89,11 +89,11 @@ class UserSerializer(serializers.ModelSerializer):
         especialidad = validated_data.pop('especialidad', None)
         titulo = validated_data.pop('titulo', None)
 
-        # Crear usuario base
+        # Crear usuario base (asegurando nombres y apellidos)
         user = User.objects.create(**validated_data)
         if password:
             user.set_password(password)
-            user.save()
+        user.save()
 
         # Crear perfil según el rol
         if role == "STUDENT":
@@ -120,7 +120,6 @@ class UserSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password', None)
         role = validated_data.get('role', instance.role)
 
-        # Extraer datos de perfil
         grado = validated_data.pop('grado', None)
         acudiente_nombre = validated_data.pop('acudiente_nombre', None)
         acudiente_telefono = validated_data.pop('acudiente_telefono', None)
@@ -128,16 +127,14 @@ class UserSerializer(serializers.ModelSerializer):
         especialidad = validated_data.pop('especialidad', None)
         titulo = validated_data.pop('titulo', None)
 
-        # Actualizar campos del usuario
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         if password:
             instance.set_password(password)
-
         instance.save()
 
-        # Actualizar o crear perfil según rol
+        # Actualizar o crear perfil
         if role == "STUDENT":
             StudentProfile.objects.update_or_create(
                 user=instance,
