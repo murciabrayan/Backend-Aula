@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.conf import settings
 
-# -------- MANAGER --------
+
 class UserManager(BaseUserManager):
     def create_user(self, email, cedula, password=None, **extra_fields):
         if not email:
@@ -52,7 +52,7 @@ class StudentProfile(models.Model):
         on_delete=models.CASCADE,
         related_name="student_profile"
     )
-    grado = models.CharField(max_length=50)  # Ej: "10A", "11B"
+    grado = models.CharField(max_length=50)  # Ej: "Quinto", "sexto"
     acudiente_nombre = models.CharField(max_length=150)
     acudiente_telefono = models.CharField(max_length=20)
     acudiente_email = models.EmailField(blank=True, null=True)
