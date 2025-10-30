@@ -10,9 +10,9 @@ import json
 
 User = get_user_model()
 
-# -----------------------------
+
 # Enviar correo de restablecimiento
-# -----------------------------
+
 @csrf_exempt
 def forgot_password(request):
     if request.method != "POST":
@@ -49,7 +49,7 @@ def forgot_password(request):
         return JsonResponse({"message": "Correo de restablecimiento enviado correctamente."}, status=200)
 
     except Exception as e:
-        print("❌ Error en forgot_password:", e)
+        print("Error en forgot_password:", e)
         return JsonResponse({"error": "Error interno del servidor"}, status=500)
 
 
@@ -81,5 +81,5 @@ def reset_password(request, uidb64, token):
         return JsonResponse({"message": "Contraseña restablecida exitosamente."}, status=200)
 
     except Exception as e:
-        print("❌ Error en reset_password:", e)
+        print("Error en reset_password:", e)
         return JsonResponse({"error": "Error interno del servidor"}, status=500)

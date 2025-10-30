@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'accounts',
     'courses',
+    'assignments',
+
 ]
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # 👈 debe ir arriba
@@ -153,3 +155,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'branfer60@gmail.com'   # aquí tu correo real
 EMAIL_HOST_PASSWORD = 'bnla xiox mgzh wjue'  # NO tu contraseña normal
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+import os
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
