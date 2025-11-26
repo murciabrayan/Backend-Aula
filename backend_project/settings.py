@@ -11,21 +11,26 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-kjjoj+*2ro8wmv)*@=bpahju2i%avd)dyq0+6btr9fn8+ah5@*'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# IMPORTANTÍSIMO para evitar 502 en Elastic Beanstalk:
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    ".elasticbeanstalk.com",
+    "proyecto-aula-backend-env.eba-2bmwxmrx.us-east-2.elasticbeanstalk.com",
+]
 
 
 # Application definition
@@ -42,10 +47,10 @@ INSTALLED_APPS = [
     'accounts',
     'courses',
     'assignments',
-
 ]
+
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # 👈 debe ir arriba
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -76,86 +81,89 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend_project.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
+# ================================
+# DATABASE (TAL COMO LA TENÍAS)
+# ================================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'gimnasio',
         'USER': 'postgres',
-        'PASSWORD': 'cafune123',
-        'HOST': 'localhost',
-        'PORT': '5434',
+        'PASSWORD': 'ProyectoAula2025!',
+        'HOST': 'proyecto-aula-db.cd6mc0waqzbt.us-east-2.rds.amazonaws.com',
+        'PORT': '5432',
     }
 }
 
+
+# ================================
+# CORS
+# ================================
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
     "http://localhost:5173",
+    "http://proyecto-aula-frontend-bucket.s3-website.us-east-2.amazonaws.com/",
 ]
+ALLOWED_HOSTS = ['*']
 
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_HEADERS = True
+CORS_ALLOW_ALL_METHODS = True
+
+
+# ================================
+# PASSWORD VALIDATION
+# ================================
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
+# ================================
+# INTERNATIONALIZATION
+# ================================
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+# ================================
+# STATIC FILES
+# ================================
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-STATIC_URL = 'static/'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-AUTH_USER_MODEL = 'accounts.User'
-
-
-# (más adelante, para fotos)
+# ================================
+# MEDIA FILES
+# ================================
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+
+# ================================
+# REST FRAMEWORK / JWT
+# ================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
-# === CONFIGURACIÓN DE EMAIL ===
+
+AUTH_USER_MODEL = 'accounts.User'
+
+
+# ================================
+# SMTP / EMAIL
+# ================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'            # o el host SMTP institucional
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'branfer60@gmail.com'   # aquí tu correo real
-EMAIL_HOST_PASSWORD = 'bnla xiox mgzh wjue'  # NO tu contraseña normal
+EMAIL_HOST_USER = 'branfer60@gmail.com'
+EMAIL_HOST_PASSWORD = 'bnla xiox mgzh wjue'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-import os
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
