@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.conf.urls.static import static
 
-# 🔹 Importaciones de tus apps
+# 🔹 Importaciones
 from accounts.views_profile import user_profile, change_password
 from accounts.views import (
     CustomTokenObtainPairView,
@@ -17,6 +17,8 @@ from accounts.views_password_reset import (
     forgot_password,
     reset_password,
 )
+from accounts.views_google import google_login
+
 from courses.views import CourseViewSet
 
 # 🔹 Routers
@@ -26,11 +28,10 @@ router.register(r'students', StudentProfileViewSet)
 router.register(r'teachers', TeacherProfileViewSet)
 router.register(r'courses', CourseViewSet)
 
-# 🔹 URLs principales
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # Perfil y cambio de contraseña
+    # Perfil
     path('api/profile/', user_profile, name='user_profile'),
     path('api/change-password/', change_password, name='change_password'),
 
@@ -38,17 +39,21 @@ urlpatterns = [
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
-    # API principales
+    # ⭐ GOOGLE LOGIN
+    path('api/auth/google/', google_login, name='google_login'),
+
+    # API routers
     path('api/', include(router.urls)),
 
-    # Recuperación de contraseña
+    # Password reset
     path('api/password-reset/', forgot_password, name='forgot_password'),
     path('api/password-reset/<uidb64>/<token>/', reset_password, name='reset_password'),
 
-    # Asignación de tareas (assignments)
+    # Assignments
     path('api/', include('assignments.urls')),
+    # notifications
+    path("api/", include("notifications.urls")),
 ]
 
-# 🔹 Servir archivos multimedia en desarrollo
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

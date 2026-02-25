@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 from courses.models import Course
+
 
 class Assignment(models.Model):
     """Tarea creada por un docente para un curso"""
@@ -18,10 +20,26 @@ class Assignment(models.Model):
 class Submission(models.Model):
     """Entrega de una tarea por parte del estudiante"""
     tarea = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='entregas')
-    estudiante = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={'role': 'STUDENT'})
+    estudiante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        limit_choices_to={'role': 'STUDENT'}
+    )
     archivo = models.FileField(upload_to='tareas_estudiantes/', blank=True, null=True)
     fecha_entrega = models.DateTimeField(auto_now_add=True)
-    calificacion = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
+
+    # 🔥 CAMPO CORRECTO
+    calificacion = models.DecimalField(
+        max_digits=3,          # ej: 5.0
+        decimal_places=1,      # solo 1 decimal
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(5),
+        ],
+        blank=True,
+        null=True,
+    )
+
     retroalimentacion = models.TextField(blank=True, null=True)
 
     def __str__(self):
