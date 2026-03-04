@@ -19,7 +19,8 @@ from accounts.views_password_reset import (
 )
 from accounts.views_google import google_login
 
-from courses.views import CourseViewSet
+# 👇 IMPORTAR AMBOS VIEWSETS
+from courses.views import CourseViewSet, SubjectViewSet
 
 # 🔹 Routers
 router = DefaultRouter()
@@ -27,6 +28,7 @@ router.register(r'users', UserViewSet)
 router.register(r'students', StudentProfileViewSet)
 router.register(r'teachers', TeacherProfileViewSet)
 router.register(r'courses', CourseViewSet)
+router.register(r'subjects', SubjectViewSet)  # ✅ NUEVO ENDPOINT
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -39,7 +41,7 @@ urlpatterns = [
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
-    # ⭐ GOOGLE LOGIN
+    # Google login
     path('api/auth/google/', google_login, name='google_login'),
 
     # API routers
@@ -51,8 +53,11 @@ urlpatterns = [
 
     # Assignments
     path('api/', include('assignments.urls')),
-    # notifications
-    path("api/", include("notifications.urls")),
+
+    # Notifications
+    path('api/', include('notifications.urls')),
+    # Calendar
+    path('api/calendar/', include('calendar_app.urls')),
 ]
 
 if settings.DEBUG:

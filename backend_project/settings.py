@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'courses',
     'assignments',
     'notifications',
+    'calendar_app',
 ]
 
 # ==============================
@@ -120,7 +121,6 @@ USE_TZ = True
 
 # ==============================
 # GOOGLE OAUTH
-# ⚠️ REEMPLAZA POR EL REAL
 # ==============================
 GOOGLE_CLIENT_ID = "509271286435-fpgfh78rc1vunkjpeatolrndho8cn96t.apps.googleusercontent.com"
 
