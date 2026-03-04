@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from .models import Course
 from .serializers import CourseSerializer
 from accounts.models import User
+from .models import Subject
+from .serializers import SubjectSerializer
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -36,7 +38,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         course.estudiantes.remove(user)
         return Response({'detail': 'student removed'}, status=status.HTTP_200_OK)
 
-    # 🔹 Remover docente del curso
+
     @action(detail=True, methods=['post'], url_path='remove-teacher')
     def remove_teacher(self, request, pk=None):
         course = self.get_object()
@@ -44,7 +46,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         course.save()
         return Response({'detail': 'teacher removed'}, status=status.HTTP_200_OK)
 
-    # 🔹 Obtener curso asignado al docente autenticado
+    
     @action(detail=False, methods=['get'], url_path='teacher/course')
     def teacher_course(self, request):
         """
@@ -59,3 +61,27 @@ class CourseViewSet(viewsets.ModelViewSet):
             )
         serializer = self.get_serializer(course)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class SubjectViewSet(viewsets.ModelViewSet):
+    queryset = Subject.objects.all()
+    serializer_class = SubjectSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Subject.objects.all()
+
+        course_id = self.request.query_params.get('course')
+        if course_id:
+            queryset = queryset.filter(curso__id=course_id)
+
+        if user.role == 'ADMIN':
+            return queryset  # ✅ ADMIN ve todo
+
+        if user.role == 'TEACHER':
+            return queryset.filter(curso__docente=user)
+
+        if user.role == 'STUDENT':
+            return queryset.filter(curso__estudiantes=user)
+
+        return Subject.objects.none()

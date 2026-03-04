@@ -9,10 +9,10 @@ from notifications.models import Notification
 
 
 # =========================
-# 📚 ASSIGNMENTS
+# 📘 ASSIGNMENTS
 # =========================
 class AssignmentViewSet(viewsets.ModelViewSet):
-    queryset = Assignment.objects.all()
+    queryset = Assignment.objects.all()  # ✅ NECESARIO PARA EL ROUTER
     serializer_class = AssignmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -22,23 +22,41 @@ class AssignmentViewSet(viewsets.ModelViewSet):
 
         course_id = self.request.query_params.get('course')
         if course_id:
-            queryset = queryset.filter(curso_id=course_id)
+            queryset = queryset.filter(materia__curso_id=course_id)
+
+        subject_id = self.request.query_params.get('subject')
+        if subject_id:
+            queryset = queryset.filter(materia_id=subject_id)
 
         if user.role == 'TEACHER':
-            queryset = queryset.filter(curso__docente=user)
+            queryset = queryset.filter(
+                materia__curso__docente=user
+            )
+
         elif user.role == 'STUDENT':
-            queryset = queryset.filter(curso__estudiantes=user)
+            queryset = queryset.filter(
+                materia__curso__estudiantes=user
+            )
+
         else:
             queryset = Assignment.objects.none()
 
         return queryset
 
     def perform_create(self, serializer):
-        curso = serializer.validated_data.get('curso')
-        if curso.docente != self.request.user:
+        user = self.request.user
+        materia = serializer.validated_data.get('materia')
+
+        if user.role != 'TEACHER':
             raise PermissionDenied(
-                "Solo el docente asignado puede crear tareas para este curso."
+                "Solo los docentes pueden crear tareas."
             )
+
+        if materia.curso.docente != user:
+            raise PermissionDenied(
+                "Solo el docente asignado al curso puede crear tareas en esta materia."
+            )
+
         serializer.save()
 
 
@@ -46,7 +64,7 @@ class AssignmentViewSet(viewsets.ModelViewSet):
 # 📥 SUBMISSIONS
 # =========================
 class SubmissionViewSet(viewsets.ModelViewSet):
-    queryset = Submission.objects.all()
+    queryset = Submission.objects.all()  # ✅ NECESARIO PARA EL ROUTER
     serializer_class = SubmissionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -60,8 +78,12 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 
         if user.role == 'STUDENT':
             queryset = queryset.filter(estudiante=user)
+
         elif user.role == 'TEACHER':
-            queryset = queryset.filter(tarea__curso__docente=user)
+            queryset = queryset.filter(
+                tarea__materia__curso__docente=user
+            )
+
         else:
             queryset = Submission.objects.none()
 
@@ -69,10 +91,12 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
+
         if user.role != 'STUDENT':
             raise PermissionDenied(
                 "Solo los estudiantes pueden subir entregas."
             )
+
         serializer.save(estudiante=user)
 
     # =========================
@@ -80,15 +104,10 @@ class SubmissionViewSet(viewsets.ModelViewSet):
     # =========================
     @action(detail=True, methods=['post'])
     def calificar(self, request, pk=None):
-        """
-        Permite al docente calificar una entrega
-        y genera una notificación al estudiante.
-        """
-
         entrega = self.get_object()
+        user = request.user
 
-        # 🔒 Verificar que sea el docente del curso
-        if request.user != entrega.tarea.curso.docente:
+        if entrega.tarea.materia.curso.docente != user:
             return Response(
                 {'detail': 'No autorizado'},
                 status=status.HTTP_403_FORBIDDEN
@@ -97,7 +116,6 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         calificacion = request.data.get('calificacion')
         retroalimentacion = request.data.get('retroalimentacion', '')
 
-        # ✅ Validar número
         try:
             calificacion = float(calificacion)
         except (TypeError, ValueError):
@@ -106,28 +124,22 @@ class SubmissionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ✅ Validar rango
         if not (0.0 <= calificacion <= 5.0):
             return Response(
                 {'detail': 'La calificación debe estar entre 0.0 y 5.0'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ✅ Redondear
-        calificacion = round(calificacion, 2)
-
-        # 💾 Guardar datos
-        entrega.calificacion = calificacion
+        entrega.calificacion = round(calificacion, 2)
         entrega.retroalimentacion = retroalimentacion
         entrega.save()
 
-        # 🔔 Crear notificación
         Notification.objects.create(
             usuario=entrega.estudiante,
             titulo="Nueva calificación",
             mensaje=(
                 f"Tu tarea '{entrega.tarea.titulo}' "
-                f"fue calificada con {calificacion}."
+                f"fue calificada con {entrega.calificacion}."
             )
         )
 
