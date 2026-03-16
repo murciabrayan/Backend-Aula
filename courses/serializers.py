@@ -1,20 +1,29 @@
 from rest_framework import serializers
-from .models import Course, Subject
+from .models import Course, Subject, Area
 from accounts.models import User
 
 
 # ===================== SUBJECT =====================
 
 class SubjectSerializer(serializers.ModelSerializer):
+    area_nombre = serializers.CharField(source="area.nombre", read_only=True)
+
     class Meta:
         model = Subject
+        fields = "__all__"
+
+
+# ===================== AREA =====================
+
+class AreaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Area
         fields = "__all__"
 
 
 # ===================== COURSE =====================
 
 class CourseSerializer(serializers.ModelSerializer):
-    # nombres amigables para frontend
     name = serializers.CharField(source="nombre")
     description = serializers.CharField(
         source="descripcion",
@@ -43,6 +52,11 @@ class CourseSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    areas = AreaSerializer(
+    many=True,
+    read_only=True
+)
+
     class Meta:
         model = Course
         fields = [
@@ -52,9 +66,8 @@ class CourseSerializer(serializers.ModelSerializer):
             "teacher",
             "students",
             "subjects",
+            "areas",
         ]
-
-    # ===================== VALIDATION =====================
 
     def validate(self, attrs):
         nombre = attrs.get("nombre")
@@ -72,23 +85,18 @@ class CourseSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    # ===================== UPDATE () =====================
-
     def update(self, instance, validated_data):
         estudiantes_data = validated_data.pop("estudiantes", None)
         docente_data = validated_data.pop("docente", None)
 
-        # actualizar campos simples
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        # actualizar docente
         if docente_data is not None:
             instance.docente = docente_data
 
         instance.save()
 
-        # 🔥 REEMPLAZA COMPLETAMENTE LOS ESTUDIANTES
         if estudiantes_data is not None:
             instance.estudiantes.set(estudiantes_data)
 

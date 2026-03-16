@@ -6,6 +6,13 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class Assignment(models.Model):
     """Tarea creada por un docente para una asignatura"""
 
+    PERIOD_CHOICES = [
+        (1, "Periodo 1"),
+        (2, "Periodo 2"),
+        (3, "Periodo 3"),
+        (4, "Periodo 4"),
+    ]
+
     materia = models.ForeignKey(
         'courses.Subject',
         on_delete=models.CASCADE,
@@ -16,10 +23,16 @@ class Assignment(models.Model):
     descripcion = models.TextField(blank=True)
     fecha_entrega = models.DateField()
     archivo = models.FileField(upload_to='tareas_docente/', blank=True, null=True)
+
+    periodo = models.PositiveSmallIntegerField(
+        choices=PERIOD_CHOICES,
+        default=1
+    )
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.titulo} ({self.materia.nombre})"
+        return f"{self.titulo} ({self.materia.nombre}) - P{self.periodo}"
 
 
 class Submission(models.Model):

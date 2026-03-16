@@ -5,11 +5,15 @@ from .models import Assignment, Submission
 class AssignmentSerializer(serializers.ModelSerializer):
     materia_nombre = serializers.CharField(source='materia.nombre', read_only=True)
     curso_nombre = serializers.CharField(source='materia.curso.nombre', read_only=True)
+    periodo_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Assignment
         fields = '__all__'
         read_only_fields = ['id', 'fecha_creacion']
+
+    def get_periodo_nombre(self, obj):
+        return f"Periodo {obj.periodo}"
 
 
 class SubmissionSerializer(serializers.ModelSerializer):

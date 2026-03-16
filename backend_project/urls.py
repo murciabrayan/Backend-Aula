@@ -19,8 +19,8 @@ from accounts.views_password_reset import (
 )
 from accounts.views_google import google_login
 
-# 👇 IMPORTAR AMBOS VIEWSETS
-from courses.views import CourseViewSet, SubjectViewSet
+# 👇 IMPORTAR VIEWSETS
+from courses.views import CourseViewSet, SubjectViewSet, AreaViewSet
 
 # 🔹 Routers
 router = DefaultRouter()
@@ -28,7 +28,8 @@ router.register(r'users', UserViewSet)
 router.register(r'students', StudentProfileViewSet)
 router.register(r'teachers', TeacherProfileViewSet)
 router.register(r'courses', CourseViewSet)
-router.register(r'subjects', SubjectViewSet)  # ✅ NUEVO ENDPOINT
+router.register(r'subjects', SubjectViewSet)
+router.register(r'areas', AreaViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -56,8 +57,18 @@ urlpatterns = [
 
     # Notifications
     path('api/', include('notifications.urls')),
+
     # Calendar
     path('api/calendar/', include('calendar_app.urls')),
+
+    # Boletines
+    path("api/report-cards/", include("report_cards.urls")),
+
+    # ASISTENCIA
+    path("api/", include("attendance.urls")),
+    
+    # Alertas
+    path('api/academic-alerts/', include('academic_alerts.urls')),
 ]
 
 if settings.DEBUG:

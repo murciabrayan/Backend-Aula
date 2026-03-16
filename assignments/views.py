@@ -9,10 +9,10 @@ from notifications.models import Notification
 
 
 # =========================
-# 📘 ASSIGNMENTS
+# ASSIGNMENTS
 # =========================
 class AssignmentViewSet(viewsets.ModelViewSet):
-    queryset = Assignment.objects.all()  # ✅ NECESARIO PARA EL ROUTER
+    queryset = Assignment.objects.all()
     serializer_class = AssignmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -27,6 +27,10 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         subject_id = self.request.query_params.get('subject')
         if subject_id:
             queryset = queryset.filter(materia_id=subject_id)
+
+        periodo = self.request.query_params.get('periodo')
+        if periodo:
+            queryset = queryset.filter(periodo=periodo)
 
         if user.role == 'TEACHER':
             queryset = queryset.filter(
@@ -61,10 +65,10 @@ class AssignmentViewSet(viewsets.ModelViewSet):
 
 
 # =========================
-# 📥 SUBMISSIONS
+# SUBMISSIONS
 # =========================
 class SubmissionViewSet(viewsets.ModelViewSet):
-    queryset = Submission.objects.all()  # ✅ NECESARIO PARA EL ROUTER
+    queryset = Submission.objects.all()
     serializer_class = SubmissionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -85,7 +89,7 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             )
 
         else:
-            queryset = Submission.objects.none()
+            queryset = queryset.none()
 
         return queryset
 
@@ -100,7 +104,7 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         serializer.save(estudiante=user)
 
     # =========================
-    # ⭐ CALIFICAR ENTREGA
+    # CALIFICAR ENTREGA
     # =========================
     @action(detail=True, methods=['post'])
     def calificar(self, request, pk=None):

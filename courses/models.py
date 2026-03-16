@@ -26,6 +26,21 @@ class Course(models.Model):
         return self.nombre
 
 
+class Area(models.Model):
+    nombre = models.CharField(max_length=100)
+    curso = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='areas'
+    )
+
+    class Meta:
+        unique_together = ('nombre', 'curso')
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f"{self.nombre} - {self.curso.nombre}"
+
 
 class Subject(models.Model):
     """Asignatura dentro de un curso"""
@@ -35,9 +50,17 @@ class Subject(models.Model):
         on_delete=models.CASCADE,
         related_name='materias'
     )
+    area = models.ForeignKey(
+        Area,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='materias'
+    )
 
     class Meta:
         unique_together = ('nombre', 'curso')
+        ordering = ['nombre']
 
     def __str__(self):
         return f"{self.nombre} - {self.curso.nombre}"

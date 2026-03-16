@@ -24,7 +24,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
 
     # terceros
     'rest_framework',
@@ -36,6 +35,10 @@ INSTALLED_APPS = [
     'assignments',
     'notifications',
     'calendar_app',
+    'report_cards',
+
+    'academic_alerts',
+    'attendance',
 ]
 
 # ==============================
