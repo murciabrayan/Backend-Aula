@@ -19,17 +19,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         user = self.user
         request = self.context.get("request")
-        photo_url = None
-
-        if user.profile_photo:
-            try:
-                photo_url = (
-                    request.build_absolute_uri(user.profile_photo.url)
-                    if request
-                    else user.profile_photo.url
-                )
-            except (AttributeError, OSError, ValueError, FileNotFoundError):
-                photo_url = None
 
         data["user"] = {
             "id": user.id,
@@ -38,7 +27,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "role": user.role,
-            "photo_url": photo_url,
+            "photo_url": user.get_photo_url(request),
+            "avatar_url": user.get_avatar_url(request),
+            "avatar_style": user.avatar_style,
+            "avatar_seed": user.get_avatar_seed(),
         }
         return data
 
@@ -92,6 +84,7 @@ class UserSerializer(serializers.ModelSerializer):
     teacher_profile = TeacherProfileSerializer(read_only=True)
     documents = UserDocumentSerializer(read_only=True, many=True)
     photo_url = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
 
     # Campos adicionales
     grado = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -101,6 +94,8 @@ class UserSerializer(serializers.ModelSerializer):
     especialidad = serializers.CharField(write_only=True, required=False, allow_blank=True)
     titulo = serializers.CharField(write_only=True, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    avatar_style = serializers.CharField(required=False, allow_blank=True)
+    avatar_seed = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = User
@@ -113,6 +108,9 @@ class UserSerializer(serializers.ModelSerializer):
             'role',
             'profile_photo',
             'photo_url',
+            'avatar_url',
+            'avatar_style',
+            'avatar_seed',
             'is_active',
             'password',
             'student_profile',
@@ -128,17 +126,10 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {"profile_photo": {"required": False}}
 
     def get_photo_url(self, obj):
-        request = self.context.get("request")
-        if not obj.profile_photo:
-            return None
-        try:
-            return (
-                request.build_absolute_uri(obj.profile_photo.url)
-                if request
-                else obj.profile_photo.url
-            )
-        except (AttributeError, OSError, ValueError, FileNotFoundError):
-            return None
+        return obj.get_photo_url(self.context.get("request"))
+
+    def get_avatar_url(self, obj):
+        return obj.get_avatar_url(self.context.get("request"))
 
     # -------------------------------
     # CREACIÓN DE USUARIO + PERFIL

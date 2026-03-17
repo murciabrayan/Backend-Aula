@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.conf import settings
+from urllib.parse import quote
 
 
 class UserManager(BaseUserManager):
@@ -34,6 +35,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=100, blank=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     profile_photo = models.ImageField(upload_to='profiles/', blank=True, null=True)
+    avatar_style = models.CharField(max_length=60, blank=True, default="adventurer-neutral")
+    avatar_seed = models.CharField(max_length=180, blank=True, default="")
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     google_account = models.BooleanField(default=False)
@@ -45,6 +48,32 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f'{self.email} - {self.cedula} - {self.get_role_display()}'
+
+    def get_avatar_seed(self):
+        if self.avatar_seed:
+            return self.avatar_seed
+        full_name = f"{self.first_name} {self.last_name}".strip()
+        return full_name or self.email or self.cedula
+
+    def get_generated_avatar_url(self):
+        style = self.avatar_style or "adventurer-neutral"
+        seed = quote(self.get_avatar_seed())
+        return f"https://api.dicebear.com/9.x/{style}/svg?seed={seed}&backgroundType=gradientLinear"
+
+    def get_photo_url(self, request=None):
+        if not self.profile_photo:
+            return None
+        try:
+            return (
+                request.build_absolute_uri(self.profile_photo.url)
+                if request
+                else self.profile_photo.url
+            )
+        except (AttributeError, OSError, ValueError, FileNotFoundError):
+            return None
+
+    def get_avatar_url(self, request=None):
+        return self.get_photo_url(request) or self.get_generated_avatar_url()
 
 
 # -------- PROFILES --------

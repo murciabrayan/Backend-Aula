@@ -24,7 +24,10 @@ def user_profile(request):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "role": user.role,
-            "photo_url": request.build_absolute_uri(user.profile_photo.url) if user.profile_photo else None,
+            "photo_url": user.get_photo_url(request),
+            "avatar_url": user.get_avatar_url(request),
+            "avatar_style": user.avatar_style,
+            "avatar_seed": user.get_avatar_seed(),
         }
 
         if user.role == "STUDENT":
@@ -59,6 +62,13 @@ def user_profile(request):
         user.first_name = request.data.get("first_name", user.first_name)
         user.last_name = request.data.get("last_name", user.last_name)
         user.email = request.data.get("email", user.email)
+        user.avatar_style = request.data.get("avatar_style", user.avatar_style or "adventurer-neutral")
+        user.avatar_seed = request.data.get("avatar_seed", user.avatar_seed or "")
+
+        if request.data.get("clear_profile_photo") == "true" and user.profile_photo:
+            user.profile_photo.delete(save=False)
+            user.profile_photo = None
+
         if "profile_photo" in request.FILES:
             user.profile_photo = request.FILES["profile_photo"]
         user.save()
@@ -91,7 +101,6 @@ def user_profile(request):
                 },
             )
 
-        photo_url = request.build_absolute_uri(user.profile_photo.url) if user.profile_photo else None
         return Response({
             "message": "Perfil actualizado correctamente.",
             "profile": {
@@ -100,7 +109,10 @@ def user_profile(request):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "role": user.role,
-                "photo_url": photo_url,
+                "photo_url": user.get_photo_url(request),
+                "avatar_url": user.get_avatar_url(request),
+                "avatar_style": user.avatar_style,
+                "avatar_seed": user.get_avatar_seed(),
             }
         })
 

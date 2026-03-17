@@ -65,7 +65,10 @@ def google_login(request):
                     "first_name": user.first_name,
                     "last_name": user.last_name,
                     "role": user.role,
-                    "photo_url": request.build_absolute_uri(user.profile_photo.url) if user.profile_photo else None,
+                    "photo_url": user.get_photo_url(request),
+                    "avatar_url": user.get_avatar_url(request),
+                    "avatar_style": user.avatar_style,
+                    "avatar_seed": user.get_avatar_seed(),
                 },
             }
         )
