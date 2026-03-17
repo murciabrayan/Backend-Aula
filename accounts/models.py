@@ -86,3 +86,21 @@ class AdminProfile(models.Model):
 
     def __str__(self):
         return f"Administrador: {self.user.email} - {self.cargo}"
+
+
+class UserDocument(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+    title = models.CharField(max_length=180)
+    category = models.CharField(max_length=120, blank=True)
+    file = models.FileField(upload_to="user_documents/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at", "title"]
+
+    def __str__(self):
+        return f"{self.title} - {self.user.email}"

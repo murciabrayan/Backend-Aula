@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
-from .models import User, StudentProfile, TeacherProfile
+from .models import User, StudentProfile, TeacherProfile, UserDocument
 
 
 # -------------------------------
@@ -64,12 +64,33 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'especialidad', 'titulo']
 
 
+class UserDocumentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserDocument
+        fields = ["id", "title", "category", "file", "file_url", "uploaded_at"]
+        extra_kwargs = {"file": {"write_only": True}}
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        try:
+            return (
+                request.build_absolute_uri(obj.file.url)
+                if request
+                else obj.file.url
+            )
+        except (AttributeError, OSError, ValueError, FileNotFoundError):
+            return None
+
+
 # -------------------------------
 # SERIALIZADOR PRINCIPAL DE USUARIO
 # -------------------------------
 class UserSerializer(serializers.ModelSerializer):
     student_profile = StudentProfileSerializer(read_only=True)
     teacher_profile = TeacherProfileSerializer(read_only=True)
+    documents = UserDocumentSerializer(read_only=True, many=True)
     photo_url = serializers.SerializerMethodField()
 
     # Campos adicionales
@@ -96,6 +117,7 @@ class UserSerializer(serializers.ModelSerializer):
             'password',
             'student_profile',
             'teacher_profile',
+            'documents',
             'grado',
             'acudiente_nombre',
             'acudiente_telefono',

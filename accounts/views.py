@@ -1,8 +1,11 @@
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
 from rest_framework import viewsets, permissions, status
-from .models import User, StudentProfile, TeacherProfile
-from .serializers import UserSerializer, StudentProfileSerializer, TeacherProfileSerializer
+from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from django.shortcuts import get_object_or_404
+from .models import User, StudentProfile, TeacherProfile, UserDocument
+from .serializers import UserSerializer, StudentProfileSerializer, TeacherProfileSerializer, UserDocumentSerializer
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 
@@ -33,6 +36,7 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         queryset = User.objects.all()
@@ -42,6 +46,27 @@ class UserViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(role__iexact=role)
 
         return queryset
+
+    @action(detail=True, methods=["post"], parser_classes=[MultiPartParser, FormParser])
+    def documents(self, request, pk=None):
+        user = self.get_object()
+        serializer = UserDocumentSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @documents.mapping.get
+    def list_documents(self, request, pk=None):
+        user = self.get_object()
+        serializer = UserDocumentSerializer(user.documents.all(), many=True, context={"request": request})
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["delete"], url_path=r"documents/(?P<document_id>[^/.]+)")
+    def delete_document(self, request, pk=None, document_id=None):
+        user = self.get_object()
+        document = get_object_or_404(UserDocument, pk=document_id, user=user)
+        document.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ==============================
