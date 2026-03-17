@@ -69,6 +69,9 @@ urlpatterns = [
     
     # Alertas
     path('api/academic-alerts/', include('academic_alerts.urls')),
+
+    # Landing content
+    path('api/landing/', include('landing_content.urls')),
 ]
 
 if settings.DEBUG:

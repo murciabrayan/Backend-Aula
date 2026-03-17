@@ -1,0 +1,101 @@
+from rest_framework import serializers
+
+from .models import (
+    LandingCalendarEntry,
+    LandingDocument,
+    LandingGalleryItem,
+    LandingNews,
+)
+
+
+class MediaUrlMixin(serializers.ModelSerializer):
+    def build_absolute_media_url(self, file_field):
+        request = self.context.get("request")
+        if not file_field:
+            return None
+        if request:
+            return request.build_absolute_uri(file_field.url)
+        return file_field.url
+
+
+class LandingNewsSerializer(MediaUrlMixin):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LandingNews
+        fields = [
+            "id",
+            "title",
+            "summary",
+            "published_at",
+            "image",
+            "image_url",
+            "display_order",
+            "is_active",
+        ]
+        extra_kwargs = {"image": {"write_only": True, "required": False}}
+
+    def get_image_url(self, obj):
+        return self.build_absolute_media_url(obj.image)
+
+
+class LandingGalleryItemSerializer(MediaUrlMixin):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LandingGalleryItem
+        fields = [
+            "id",
+            "title",
+            "detail",
+            "event_date",
+            "image",
+            "image_url",
+            "display_order",
+            "is_active",
+        ]
+        extra_kwargs = {"image": {"write_only": True, "required": False}}
+
+    def get_image_url(self, obj):
+        return self.build_absolute_media_url(obj.image)
+
+
+class LandingDocumentSerializer(MediaUrlMixin):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LandingDocument
+        fields = [
+            "id",
+            "title",
+            "description",
+            "file",
+            "file_url",
+            "display_order",
+            "is_active",
+        ]
+        extra_kwargs = {"file": {"write_only": True, "required": False}}
+
+    def get_file_url(self, obj):
+        return self.build_absolute_media_url(obj.file)
+
+
+class LandingCalendarEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LandingCalendarEntry
+        fields = [
+            "id",
+            "title",
+            "detail",
+            "event_date",
+            "display_order",
+            "is_active",
+        ]
+
+
+class LandingContentSerializer(serializers.Serializer):
+    news = LandingNewsSerializer(many=True)
+    gallery = LandingGalleryItemSerializer(many=True)
+    documents = LandingDocumentSerializer(many=True)
+    calendar_entries = LandingCalendarEntrySerializer(many=True)
+
