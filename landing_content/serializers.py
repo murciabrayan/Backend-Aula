@@ -13,9 +13,14 @@ class MediaUrlMixin(serializers.ModelSerializer):
         request = self.context.get("request")
         if not file_field:
             return None
+        try:
+            file_url = file_field.url
+        except (AttributeError, OSError, ValueError, FileNotFoundError):
+            return None
+
         if request:
-            return request.build_absolute_uri(file_field.url)
-        return file_field.url
+            return request.build_absolute_uri(file_url)
+        return file_url
 
 
 class LandingNewsSerializer(MediaUrlMixin):
@@ -98,4 +103,3 @@ class LandingContentSerializer(serializers.Serializer):
     gallery = LandingGalleryItemSerializer(many=True)
     documents = LandingDocumentSerializer(many=True)
     calendar_entries = LandingCalendarEntrySerializer(many=True)
-
