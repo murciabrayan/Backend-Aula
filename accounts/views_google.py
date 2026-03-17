@@ -62,7 +62,10 @@ def google_login(request):
                 "user": {
                     "id": user.id,
                     "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
                     "role": user.role,
+                    "photo_url": request.build_absolute_uri(user.profile_photo.url) if user.profile_photo else None,
                 },
             }
         )

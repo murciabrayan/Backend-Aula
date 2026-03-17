@@ -15,6 +15,33 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['role'] = user.role
         return token
 
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        user = self.user
+        request = self.context.get("request")
+        photo_url = None
+
+        if user.profile_photo:
+            try:
+                photo_url = (
+                    request.build_absolute_uri(user.profile_photo.url)
+                    if request
+                    else user.profile_photo.url
+                )
+            except (AttributeError, OSError, ValueError, FileNotFoundError):
+                photo_url = None
+
+        data["user"] = {
+            "id": user.id,
+            "email": user.email,
+            "cedula": user.cedula,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "role": user.role,
+            "photo_url": photo_url,
+        }
+        return data
+
 
 # -------------------------------
 # SERIALIZADORES DE PERFILES
@@ -43,6 +70,7 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     student_profile = StudentProfileSerializer(read_only=True)
     teacher_profile = TeacherProfileSerializer(read_only=True)
+    photo_url = serializers.SerializerMethodField()
 
     # Campos adicionales
     grado = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -62,6 +90,8 @@ class UserSerializer(serializers.ModelSerializer):
             'first_name',
             'last_name',
             'role',
+            'profile_photo',
+            'photo_url',
             'is_active',
             'password',
             'student_profile',
@@ -73,6 +103,20 @@ class UserSerializer(serializers.ModelSerializer):
             'especialidad',
             'titulo',
         ]
+        extra_kwargs = {"profile_photo": {"required": False}}
+
+    def get_photo_url(self, obj):
+        request = self.context.get("request")
+        if not obj.profile_photo:
+            return None
+        try:
+            return (
+                request.build_absolute_uri(obj.profile_photo.url)
+                if request
+                else obj.profile_photo.url
+            )
+        except (AttributeError, OSError, ValueError, FileNotFoundError):
+            return None
 
     # -------------------------------
     # CREACIÓN DE USUARIO + PERFIL

@@ -1,15 +1,18 @@
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import parser_classes
+from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
-from .models import StudentProfile, TeacherProfile
+from .models import AdminProfile, StudentProfile, TeacherProfile
 
 User = get_user_model()
 
 
 @api_view(['GET', 'PUT'])
 @permission_classes([permissions.IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def user_profile(request):
     user = request.user
 
@@ -21,6 +24,7 @@ def user_profile(request):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "role": user.role,
+            "photo_url": request.build_absolute_uri(user.profile_photo.url) if user.profile_photo else None,
         }
 
         if user.role == "STUDENT":
@@ -41,6 +45,13 @@ def user_profile(request):
                     "titulo": teacher.titulo,
                 })
 
+        elif user.role == "ADMIN":
+            admin = AdminProfile.objects.filter(user=user).first()
+            if admin:
+                data.update({
+                    "cargo": admin.cargo,
+                })
+
         return Response(data)
 
     # ---------- ACTUALIZAR PERFIL ----------
@@ -48,6 +59,8 @@ def user_profile(request):
         user.first_name = request.data.get("first_name", user.first_name)
         user.last_name = request.data.get("last_name", user.last_name)
         user.email = request.data.get("email", user.email)
+        if "profile_photo" in request.FILES:
+            user.profile_photo = request.FILES["profile_photo"]
         user.save()
 
         if user.role == "STUDENT":
@@ -70,7 +83,26 @@ def user_profile(request):
                 },
             )
 
-        return Response({"message": "Perfil actualizado correctamente."})
+        elif user.role == "ADMIN":
+            AdminProfile.objects.update_or_create(
+                user=user,
+                defaults={
+                    "cargo": request.data.get("cargo", ""),
+                },
+            )
+
+        photo_url = request.build_absolute_uri(user.profile_photo.url) if user.profile_photo else None
+        return Response({
+            "message": "Perfil actualizado correctamente.",
+            "profile": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+                "photo_url": photo_url,
+            }
+        })
 
 
 @api_view(['POST'])
