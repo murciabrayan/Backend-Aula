@@ -1,23 +1,23 @@
-from rest_framework import status, permissions
+from rest_framework import permissions, status
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.decorators import parser_classes
-from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
+
 from .models import AdminProfile, StudentProfile, TeacherProfile
+from .password_rules import validate_password_strength
 
 User = get_user_model()
 
 
-@api_view(['GET', 'PUT'])
+@api_view(["GET", "PUT"])
 @permission_classes([permissions.IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def user_profile(request):
     user = request.user
 
-    # ---------- OBTENER PERFIL ----------
-    if request.method == 'GET':
+    if request.method == "GET":
         data = {
             "id": user.id,
             "email": user.email,
@@ -33,75 +33,73 @@ def user_profile(request):
         if user.role == "STUDENT":
             student = StudentProfile.objects.filter(user=user).first()
             if student:
-                data.update({
-                    "grado": student.grado,
-                    "acudiente_nombre": student.acudiente_nombre,
-                    "acudiente_telefono": student.acudiente_telefono,
-                    "acudiente_email": student.acudiente_email,
-                })
-
+                data.update(
+                    {
+                        "grado": student.grado,
+                        "acudiente_nombre": student.acudiente_nombre,
+                        "acudiente_telefono": student.acudiente_telefono,
+                        "acudiente_email": student.acudiente_email,
+                    }
+                )
         elif user.role == "TEACHER":
             teacher = TeacherProfile.objects.filter(user=user).first()
             if teacher:
-                data.update({
-                    "especialidad": teacher.especialidad,
-                    "titulo": teacher.titulo,
-                })
-
+                data.update(
+                    {
+                        "especialidad": teacher.especialidad,
+                        "titulo": teacher.titulo,
+                    }
+                )
         elif user.role == "ADMIN":
             admin = AdminProfile.objects.filter(user=user).first()
             if admin:
-                data.update({
-                    "cargo": admin.cargo,
-                })
+                data.update({"cargo": admin.cargo})
 
         return Response(data)
 
-    # ---------- ACTUALIZAR PERFIL ----------
-    elif request.method == 'PUT':
-        user.first_name = request.data.get("first_name", user.first_name)
-        user.last_name = request.data.get("last_name", user.last_name)
-        user.email = request.data.get("email", user.email)
-        user.avatar_style = request.data.get("avatar_style", user.avatar_style or "adventurer-neutral")
-        user.avatar_seed = request.data.get("avatar_seed", user.avatar_seed or "")
+    user.first_name = request.data.get("first_name", user.first_name)
+    user.last_name = request.data.get("last_name", user.last_name)
+    user.email = request.data.get("email", user.email)
+    user.avatar_style = request.data.get(
+        "avatar_style", user.avatar_style or "adventurer-neutral"
+    )
+    user.avatar_seed = request.data.get("avatar_seed", user.avatar_seed or "")
 
-        if request.data.get("clear_profile_photo") == "true" and user.profile_photo:
-            user.profile_photo.delete(save=False)
-            user.profile_photo = None
+    if request.data.get("clear_profile_photo") == "true" and user.profile_photo:
+        user.profile_photo.delete(save=False)
+        user.profile_photo = None
 
-        if "profile_photo" in request.FILES:
-            user.profile_photo = request.FILES["profile_photo"]
-        user.save()
+    if "profile_photo" in request.FILES:
+        user.profile_photo = request.FILES["profile_photo"]
 
-        if user.role == "STUDENT":
-            StudentProfile.objects.update_or_create(
-                user=user,
-                defaults={
-                    "grado": request.data.get("grado", ""),
-                    "acudiente_nombre": request.data.get("acudiente_nombre", ""),
-                    "acudiente_telefono": request.data.get("acudiente_telefono", ""),
-                    "acudiente_email": request.data.get("acudiente_email", ""),
-                },
-            )
+    user.save()
 
-        elif user.role == "TEACHER":
-            TeacherProfile.objects.update_or_create(
-                user=user,
-                defaults={
-                    "especialidad": request.data.get("especialidad", ""),
-                    "titulo": request.data.get("titulo", ""),
-                },
-            )
+    if user.role == "STUDENT":
+        StudentProfile.objects.update_or_create(
+            user=user,
+            defaults={
+                "grado": request.data.get("grado", ""),
+                "acudiente_nombre": request.data.get("acudiente_nombre", ""),
+                "acudiente_telefono": request.data.get("acudiente_telefono", ""),
+                "acudiente_email": request.data.get("acudiente_email", ""),
+            },
+        )
+    elif user.role == "TEACHER":
+        TeacherProfile.objects.update_or_create(
+            user=user,
+            defaults={
+                "especialidad": request.data.get("especialidad", ""),
+                "titulo": request.data.get("titulo", ""),
+            },
+        )
+    elif user.role == "ADMIN":
+        AdminProfile.objects.update_or_create(
+            user=user,
+            defaults={"cargo": request.data.get("cargo", "")},
+        )
 
-        elif user.role == "ADMIN":
-            AdminProfile.objects.update_or_create(
-                user=user,
-                defaults={
-                    "cargo": request.data.get("cargo", ""),
-                },
-            )
-
-        return Response({
+    return Response(
+        {
             "message": "Perfil actualizado correctamente.",
             "profile": {
                 "id": user.id,
@@ -113,11 +111,12 @@ def user_profile(request):
                 "avatar_url": user.get_avatar_url(request),
                 "avatar_style": user.avatar_style,
                 "avatar_seed": user.get_avatar_seed(),
-            }
-        })
+            },
+        }
+    )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def change_password(request):
     user = request.user
@@ -125,11 +124,22 @@ def change_password(request):
     new_password = request.data.get("new_password")
 
     if not old_password or not new_password:
-        return Response({"error": "Debes ingresar ambas contraseñas."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Debes ingresar ambas contrasenas."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     if not check_password(old_password, user.password):
-        return Response({"error": "La contraseña actual no es correcta."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "La contrasena actual no es correcta."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        validate_password_strength(new_password)
+    except ValueError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     user.set_password(new_password)
     user.save()
-    return Response({"message": "Contraseña actualizada correctamente."})
+    return Response({"message": "Contrasena actualizada correctamente."})

@@ -1,6 +1,7 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from .models import User, StudentProfile, TeacherProfile, UserDocument
+from .password_rules import validate_password_strength
 
 
 # -------------------------------
@@ -130,6 +131,32 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_avatar_url(self, obj):
         return obj.get_avatar_url(self.context.get("request"))
+
+    def validate_password(self, value):
+        if value:
+            try:
+                validate_password_strength(value)
+            except ValueError as exc:
+                raise serializers.ValidationError(str(exc))
+        return value
+
+    def validate_cedula(self, value):
+        if value and not str(value).isdigit():
+            raise serializers.ValidationError("La cedula solo puede contener numeros.")
+        return value
+
+    def validate_acudiente_telefono(self, value):
+        if value and (not str(value).isdigit() or len(str(value)) != 10):
+            raise serializers.ValidationError(
+                "El telefono del acudiente debe tener exactamente 10 numeros."
+            )
+        return value
+
+    def validate(self, attrs):
+        email = attrs.get("email")
+        if email and "@" not in email:
+            raise serializers.ValidationError({"email": "Ingresa un correo valido con arroba."})
+        return attrs
 
     # -------------------------------
     # CREACIÓN DE USUARIO + PERFIL
