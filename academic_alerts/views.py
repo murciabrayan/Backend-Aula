@@ -12,6 +12,7 @@ from accounts.models import User
 from courses.models import Course
 from assignments.models import Assignment, Submission
 from attendance.models import Attendance
+from notifications.models import Notification
 from .models import AcademicAlert
 from .serializers import (
     AcademicAlertSerializer,
@@ -131,6 +132,13 @@ def create_or_update_alert(
     threshold_value,
     details,
 ):
+    previous_alert = AcademicAlert.objects.filter(
+        student=student,
+        course=course,
+        period=period,
+        alert_type=alert_type,
+    ).first()
+
     alert, created = AcademicAlert.objects.update_or_create(
         student=student,
         course=course,
@@ -151,6 +159,23 @@ def create_or_update_alert(
             "resolved_at": None,
         },
     )
+
+    should_notify = created
+    if previous_alert and not created:
+        should_notify = (
+            previous_alert.status != "ACTIVE"
+            or previous_alert.level != level
+            or previous_alert.metric_value != metric_value
+            or previous_alert.message_student != message_student
+        )
+
+    if should_notify:
+        Notification.objects.create(
+            usuario=student,
+            titulo=title,
+            mensaje=message_student,
+        )
+
     return alert, created
 
 
