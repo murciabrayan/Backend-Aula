@@ -1,4 +1,8 @@
-from rest_framework import permissions, viewsets
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -33,6 +37,58 @@ class LandingContentView(APIView):
         return Response(serializer.data)
 
 
+class LandingContactMessageView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        name = (request.data.get("name") or "").strip()
+        email = (request.data.get("email") or "").strip()
+        phone = (request.data.get("phone") or "").strip()
+        subject = (request.data.get("subject") or "").strip()
+        message = (request.data.get("message") or "").strip()
+
+        if not name or not email or not subject or not message:
+            return Response(
+                {"error": "Completa todos los campos obligatorios del formulario."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if "@" not in email:
+            return Response(
+                {"error": "Ingresa un correo valido para poder responderte."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        context = {
+            "name": name,
+            "email": email,
+            "phone": phone or "No proporcionado",
+            "subject": subject,
+            "message": message,
+        }
+        html_message = render_to_string(
+            "landing_content/emails/contact_message.html",
+            context,
+        )
+        text_message = strip_tags(html_message)
+
+        contact_email = getattr(settings, "LANDING_CONTACT_EMAIL", settings.DEFAULT_FROM_EMAIL)
+        mail = EmailMultiAlternatives(
+            subject=f"Nuevo mensaje de contacto - {subject}",
+            body=text_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[contact_email],
+            reply_to=[email],
+        )
+        mail.attach_alternative(html_message, "text/html")
+        mail.send()
+
+        return Response(
+            {"message": "Tu mensaje fue enviado correctamente al equipo institucional."},
+            status=status.HTTP_200_OK,
+        )
+
+
 class LandingNewsViewSet(viewsets.ModelViewSet):
     queryset = LandingNews.objects.all()
     serializer_class = LandingNewsSerializer
@@ -58,4 +114,3 @@ class LandingCalendarEntryViewSet(viewsets.ModelViewSet):
     queryset = LandingCalendarEntry.objects.all()
     serializer_class = LandingCalendarEntrySerializer
     permission_classes = [IsAdminRoleOrReadOnly]
-

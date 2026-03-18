@@ -158,3 +158,4 @@ EMAIL_HOST_USER = 'branfer60@gmail.com'
 EMAIL_HOST_PASSWORD = 'bnla xiox mgzh wjue'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 FRONTEND_URL = 'http://localhost:5173'
+LANDING_CONTACT_EMAIL = 'branfer60@gmail.com'

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nuevo mensaje de contacto</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4efe3;font-family:Arial,Helvetica,sans-serif;color:#18181f;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;background:#f4efe3;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#ffffff;border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(17,17,22,0.14);">
+            <tr>
+              <td style="padding:34px 40px;background:linear-gradient(135deg,#0b0b0f 0%,#17171d 70%,#24242c 100%);">
+                <div style="display:inline-block;padding:8px 14px;border:1px solid rgba(201,162,39,0.35);border-radius:999px;color:#e5c96b;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">
+                  Landing institucional
+                </div>
+                <h1 style="margin:20px 0 10px;font-size:34px;line-height:1.08;font-family:Georgia,'Times New Roman',serif;color:#ffffff;">
+                  Nuevo mensaje de contacto
+                </h1>
+                <p style="margin:0;color:rgba(255,255,255,0.8);font-size:15px;line-height:1.75;">
+                  Un visitante envio un mensaje desde el formulario publico del colegio.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:30px 40px 10px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;border-spacing:0 14px;">
+                  <tr>
+                    <td style="width:160px;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8b6e18;">Nombre</td>
+                    <td style="font-size:15px;color:#2a2a32;">{{ name }}</td>
+                  </tr>
+                  <tr>
+                    <td style="width:160px;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8b6e18;">Correo</td>
+                    <td style="font-size:15px;color:#2a2a32;">{{ email }}</td>
+                  </tr>
+                  <tr>
+                    <td style="width:160px;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8b6e18;">Telefono</td>
+                    <td style="font-size:15px;color:#2a2a32;">{{ phone }}</td>
+                  </tr>
+                  <tr>
+                    <td style="width:160px;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8b6e18;">Asunto</td>
+                    <td style="font-size:15px;color:#2a2a32;">{{ subject }}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:10px 40px 34px;">
+                <div style="border:1px solid rgba(201,162,39,0.22);border-radius:22px;background:linear-gradient(180deg,#fffaf0 0%,#f8f2df 100%);padding:24px;">
+                  <div style="font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8b6e18;margin-bottom:12px;">
+                    Mensaje
+                  </div>
+                  <p style="margin:0;font-size:15px;line-height:1.8;color:#2a2a32;white-space:pre-line;">{{ message }}</p>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

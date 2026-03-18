@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     LandingCalendarEntryViewSet,
+    LandingContactMessageView,
     LandingContentView,
     LandingDocumentViewSet,
     LandingGalleryItemViewSet,
@@ -17,6 +18,6 @@ router.register(r"calendar", LandingCalendarEntryViewSet, basename="landing-cale
 
 urlpatterns = [
     path("content/", LandingContentView.as_view(), name="landing-content"),
+    path("contact/", LandingContactMessageView.as_view(), name="landing-contact"),
     path("", include(router.urls)),
 ]
-
