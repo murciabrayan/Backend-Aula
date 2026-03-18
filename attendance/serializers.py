@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from accounts.file_validators import validate_pdf_file
 from accounts.models import User
 from .models import Attendance
 
@@ -94,6 +95,12 @@ class AttendanceSerializer(serializers.ModelSerializer):
                 })
 
         return attrs
+
+    def validate_attachment(self, value):
+        try:
+            return validate_pdf_file(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
 
 
 class BulkAttendanceItemSerializer(serializers.Serializer):

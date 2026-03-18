@@ -1,6 +1,7 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from .models import User, StudentProfile, TeacherProfile, UserDocument
+from .file_validators import validate_pdf_file
 from .password_rules import validate_password_strength
 
 
@@ -75,6 +76,12 @@ class UserDocumentSerializer(serializers.ModelSerializer):
             )
         except (AttributeError, OSError, ValueError, FileNotFoundError):
             return None
+
+    def validate_file(self, value):
+        try:
+            return validate_pdf_file(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
 
 
 # -------------------------------

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from accounts.file_validators import validate_pdf_file
 from .models import Assignment, Submission
 
 
@@ -15,6 +16,12 @@ class AssignmentSerializer(serializers.ModelSerializer):
     def get_periodo_nombre(self, obj):
         return f"Periodo {obj.periodo}"
 
+    def validate_archivo(self, value):
+        try:
+            return validate_pdf_file(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+
 
 class SubmissionSerializer(serializers.ModelSerializer):
     estudiante_nombre = serializers.SerializerMethodField()
@@ -30,3 +37,9 @@ class SubmissionSerializer(serializers.ModelSerializer):
         if user.first_name or user.last_name:
             return f"{user.first_name} {user.last_name}".strip()
         return user.username
+
+    def validate_archivo(self, value):
+        try:
+            return validate_pdf_file(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
