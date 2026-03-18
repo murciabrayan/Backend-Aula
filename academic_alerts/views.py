@@ -178,8 +178,20 @@ def calculate_student_average_for_period(student, course, period):
         calificacion__isnull=False,
     ).select_related("tarea")
 
-    grades = [float(sub.calificacion) for sub in submissions if sub.calificacion is not None]
-    return avg_or_none(grades), assignments.count(), submissions.count()
+    subject_scores = defaultdict(list)
+    for sub in submissions:
+        if sub.calificacion is None:
+            continue
+        subject_scores[sub.tarea.materia_id].append(float(sub.calificacion))
+
+    subject_averages = [
+        avg_or_none(grades)
+        for grades in subject_scores.values()
+        if grades
+    ]
+    subject_averages = [value for value in subject_averages if value is not None]
+
+    return avg_or_none(subject_averages), assignments.count(), submissions.count()
 
 
 def calculate_student_absences_for_period(student, course, period):
