@@ -1,9 +1,8 @@
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from django.utils.html import strip_tags
 from rest_framework import permissions, status, viewsets
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -39,6 +38,8 @@ class LandingContentView(APIView):
 
 class LandingContactMessageView(APIView):
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     def post(self, request):
         name = (request.data.get("name") or "").strip()
@@ -66,27 +67,45 @@ class LandingContactMessageView(APIView):
             "subject": subject,
             "message": message,
         }
-        html_message = render_to_string(
-            "landing_content/emails/contact_message.html",
-            context,
+        text_message = (
+            "Nuevo mensaje de contacto desde la landing institucional.\n\n"
+            f"Nombre: {name}\n"
+            f"Correo: {email}\n"
+            f"Telefono: {phone or 'No proporcionado'}\n"
+            f"Asunto: {subject}\n\n"
+            "Mensaje:\n"
+            f"{message}"
         )
-        text_message = strip_tags(html_message)
 
-        contact_email = getattr(settings, "LANDING_CONTACT_EMAIL", settings.DEFAULT_FROM_EMAIL)
-        mail = EmailMultiAlternatives(
-            subject=f"Nuevo mensaje de contacto - {subject}",
-            body=text_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[contact_email],
-            reply_to=[email],
-        )
-        mail.attach_alternative(html_message, "text/html")
-        mail.send()
+        try:
+            html_message = render_to_string(
+                "landing_content/emails/contact_message.html",
+                context,
+            )
+        except Exception as exc:
+            print("No se pudo renderizar el HTML del contacto:", exc)
+            html_message = None
 
-        return Response(
-            {"message": "Tu mensaje fue enviado correctamente al equipo institucional."},
-            status=status.HTTP_200_OK,
-        )
+        try:
+            contact_email = getattr(settings, "LANDING_CONTACT_EMAIL", settings.DEFAULT_FROM_EMAIL)
+            send_mail(
+                subject=f"Nuevo mensaje de contacto - {subject}",
+                message=text_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[contact_email],
+                fail_silently=False,
+                html_message=html_message,
+            )
+            return Response(
+                {"message": "Tu mensaje fue enviado correctamente al equipo institucional."},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as exc:
+            print("Error enviando mensaje de contacto:", exc)
+            return Response(
+                {"error": "No se pudo enviar el mensaje en este momento."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class LandingNewsViewSet(viewsets.ModelViewSet):
