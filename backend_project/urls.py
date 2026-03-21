@@ -8,6 +8,7 @@ from django.conf.urls.static import static
 # 🔹 Importaciones
 from accounts.views_profile import user_profile, change_password
 from accounts.views import (
+    complete_initial_password,
     CustomTokenObtainPairView,
     UserViewSet,
     StudentProfileViewSet,
@@ -37,6 +38,7 @@ urlpatterns = [
     # Perfil
     path('api/profile/', user_profile, name='user_profile'),
     path('api/change-password/', change_password, name='change_password'),
+    path('api/complete-initial-password/', complete_initial_password, name='complete_initial_password'),
 
     # JWT
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),

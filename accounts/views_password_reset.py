@@ -89,7 +89,8 @@ def reset_password(request, uidb64, token):
             return JsonResponse({"error": "Token invalido o expirado"}, status=400)
 
         user.set_password(new_password)
-        user.save()
+        user.must_change_password = False
+        user.save(update_fields=["password", "must_change_password"])
 
         return JsonResponse({"message": "Contrasena restablecida exitosamente."}, status=200)
 

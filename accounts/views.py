@@ -139,7 +139,8 @@ def reset_password(request, uidb64, token):
 
     if user and token_generator.check_token(user, token):
         user.set_password(password)
-        user.save()
+        user.must_change_password = False
+        user.save(update_fields=["password", "must_change_password"])
         return Response(
             {"message": "Contrasena restablecida exitosamente."},
             status=status.HTTP_200_OK,
@@ -148,4 +149,52 @@ def reset_password(request, uidb64, token):
     return Response(
         {"error": "Enlace invalido o expirado."},
         status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def complete_initial_password(request):
+    user = request.user
+    new_password = request.data.get("new_password")
+
+    if not user.must_change_password:
+        return Response(
+            {"error": "Tu cuenta no tiene un cambio inicial pendiente."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not new_password:
+        return Response(
+            {"error": "Debes ingresar una nueva contrasena."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        validate_password_strength(new_password)
+    except ValueError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(new_password)
+    user.must_change_password = False
+    user.save(update_fields=["password", "must_change_password"])
+
+    return Response(
+        {
+            "message": "Contrasena actualizada correctamente.",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "cedula": user.cedula,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+                "must_change_password": user.must_change_password,
+                "photo_url": user.get_photo_url(request),
+                "avatar_url": user.get_avatar_url(request),
+                "avatar_style": user.avatar_style,
+                "avatar_seed": user.get_avatar_seed(),
+            },
+        },
+        status=status.HTTP_200_OK,
     )

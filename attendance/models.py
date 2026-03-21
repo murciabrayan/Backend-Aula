@@ -1,5 +1,6 @@
+﻿from django.conf import settings
 from django.db import models
-from django.conf import settings
+
 from courses.models import Course
 
 
@@ -52,6 +53,8 @@ class Attendance(models.Model):
         default="NONE",
     )
     notes = models.TextField(blank=True, null=True)
+    teacher_notes = models.TextField(blank=True, null=True)
+    admin_notes = models.TextField(blank=True, null=True)
     attachment = models.FileField(
         upload_to="attendance_supports/",
         blank=True,
@@ -84,3 +87,41 @@ class Attendance(models.Model):
 
     def __str__(self):
         return f"{self.student.email} - {self.date} - P{self.periodo} - {self.status}"
+
+
+class AttendanceEvent(models.Model):
+    ACTION_CHOICES = [
+        ("TEACHER_CREATED", "Registro inicial docente"),
+        ("TEACHER_UPDATED", "Actualización docente"),
+        ("ADMIN_CREATED", "Registro administrativo"),
+        ("ADMIN_UPDATED", "Corrección administrativa"),
+        ("ADMIN_JUSTIFIED", "Justificación administrativa"),
+        ("ADMIN_SUPPORT_ADDED", "Soporte administrativo agregado"),
+    ]
+
+    attendance = models.ForeignKey(
+        Attendance,
+        on_delete=models.CASCADE,
+        related_name="events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendance_events",
+    )
+    actor_role = models.CharField(max_length=20, blank=True)
+    action = models.CharField(max_length=24, choices=ACTION_CHOICES)
+    summary = models.CharField(max_length=255)
+    notes = models.TextField(blank=True)
+    details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Evento de asistencia"
+        verbose_name_plural = "Eventos de asistencia"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.attendance_id} - {self.action}"

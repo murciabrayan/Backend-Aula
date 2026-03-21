@@ -24,6 +24,7 @@ def user_profile(request):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "role": user.role,
+            "must_change_password": user.must_change_password,
             "photo_url": user.get_photo_url(request),
             "avatar_url": user.get_avatar_url(request),
             "avatar_style": user.avatar_style,
@@ -107,6 +108,7 @@ def user_profile(request):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "role": user.role,
+                "must_change_password": user.must_change_password,
                 "photo_url": user.get_photo_url(request),
                 "avatar_url": user.get_avatar_url(request),
                 "avatar_style": user.avatar_style,
@@ -141,5 +143,6 @@ def change_password(request):
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     user.set_password(new_password)
-    user.save()
+    user.must_change_password = False
+    user.save(update_fields=["password", "must_change_password"])
     return Response({"message": "Contrasena actualizada correctamente."})

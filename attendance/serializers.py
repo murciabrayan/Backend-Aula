@@ -1,13 +1,41 @@
-from rest_framework import serializers
+﻿from rest_framework import serializers
+
 from accounts.file_validators import validate_pdf_file
-from accounts.models import User
-from .models import Attendance
+from .models import Attendance, AttendanceEvent
+
+
+class AttendanceEventSerializer(serializers.ModelSerializer):
+    actor_name = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = AttendanceEvent
+        fields = [
+            "id",
+            "action",
+            "summary",
+            "notes",
+            "details",
+            "actor",
+            "actor_name",
+            "actor_role",
+            "created_at",
+        ]
+
+    def get_actor_name(self, obj):
+        if not obj.actor:
+            return None
+        return f"{obj.actor.first_name} {obj.actor.last_name}".strip()
 
 
 class AttendanceSerializer(serializers.ModelSerializer):
+    notes = serializers.SerializerMethodField(read_only=True)
     student_name = serializers.SerializerMethodField(read_only=True)
     course_name = serializers.CharField(source="course.nombre", read_only=True)
     attachment_url = serializers.SerializerMethodField(read_only=True)
+    created_by_name = serializers.SerializerMethodField(read_only=True)
+    updated_by_name = serializers.SerializerMethodField(read_only=True)
+    updated_by_role = serializers.SerializerMethodField(read_only=True)
+    events = AttendanceEventSerializer(many=True, read_only=True)
 
     class Meta:
         model = Attendance
@@ -23,12 +51,18 @@ class AttendanceSerializer(serializers.ModelSerializer):
             "is_justified",
             "justification_type",
             "notes",
+            "teacher_notes",
+            "admin_notes",
             "attachment",
             "attachment_url",
             "created_by",
+            "created_by_name",
             "updated_by",
+            "updated_by_name",
+            "updated_by_role",
             "created_at",
             "updated_at",
+            "events",
         ]
         read_only_fields = [
             "created_by",
@@ -47,6 +81,24 @@ class AttendanceSerializer(serializers.ModelSerializer):
         if obj.attachment:
             return obj.attachment.url
         return None
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return None
+        return f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
+
+    def get_updated_by_name(self, obj):
+        if not obj.updated_by:
+            return None
+        return f"{obj.updated_by.first_name} {obj.updated_by.last_name}".strip()
+
+    def get_updated_by_role(self, obj):
+        if not obj.updated_by:
+            return None
+        return obj.updated_by.role
+
+    def get_notes(self, obj):
+        return obj.admin_notes or obj.teacher_notes or obj.notes
 
     def validate(self, attrs):
         student = attrs.get("student", getattr(self.instance, "student", None))

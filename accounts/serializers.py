@@ -1,13 +1,13 @@
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.db import transaction
 from rest_framework import serializers
-from .models import User, StudentProfile, TeacherProfile, UserDocument
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 from .file_validators import validate_pdf_file
+from .models import StudentProfile, TeacherProfile, User, UserDocument
+from .onboarding import generate_temporary_password, send_welcome_credentials_email
 from .password_rules import validate_password_strength
 
 
-# -------------------------------
-# TOKEN PERSONALIZADO JWT
-# -------------------------------
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -29,6 +29,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "role": user.role,
+            "must_change_password": user.must_change_password,
             "photo_url": user.get_photo_url(request),
             "avatar_url": user.get_avatar_url(request),
             "avatar_style": user.avatar_style,
@@ -37,9 +38,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
-# -------------------------------
-# SERIALIZADORES DE PERFILES
-# -------------------------------
 class StudentProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentProfile
@@ -69,11 +67,7 @@ class UserDocumentSerializer(serializers.ModelSerializer):
     def get_file_url(self, obj):
         request = self.context.get("request")
         try:
-            return (
-                request.build_absolute_uri(obj.file.url)
-                if request
-                else obj.file.url
-            )
+            return request.build_absolute_uri(obj.file.url) if request else obj.file.url
         except (AttributeError, OSError, ValueError, FileNotFoundError):
             return None
 
@@ -84,9 +78,6 @@ class UserDocumentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(str(exc))
 
 
-# -------------------------------
-# SERIALIZADOR PRINCIPAL DE USUARIO
-# -------------------------------
 class UserSerializer(serializers.ModelSerializer):
     student_profile = StudentProfileSerializer(read_only=True)
     teacher_profile = TeacherProfileSerializer(read_only=True)
@@ -94,7 +85,6 @@ class UserSerializer(serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
 
-    # Campos adicionales
     grado = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_nombre = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_telefono = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -120,6 +110,7 @@ class UserSerializer(serializers.ModelSerializer):
             'avatar_style',
             'avatar_seed',
             'is_active',
+            'must_change_password',
             'password',
             'student_profile',
             'teacher_profile',
@@ -131,7 +122,10 @@ class UserSerializer(serializers.ModelSerializer):
             'especialidad',
             'titulo',
         ]
-        extra_kwargs = {"profile_photo": {"required": False}}
+        extra_kwargs = {
+            "profile_photo": {"required": False},
+            "must_change_password": {"read_only": True},
+        }
 
     def get_photo_url(self, obj):
         return obj.get_photo_url(self.context.get("request"))
@@ -165,14 +159,10 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"email": "Ingresa un correo valido con arroba."})
         return attrs
 
-    # -------------------------------
-    # CREACIÓN DE USUARIO + PERFIL
-    # -------------------------------
     def create(self, validated_data):
         role = validated_data.get('role')
-        password = validated_data.pop('password', None)
+        validated_data.pop('password', None)
 
-        # Extraer los campos del perfil
         grado = validated_data.pop('grado', None)
         acudiente_nombre = validated_data.pop('acudiente_nombre', None)
         acudiente_telefono = validated_data.pop('acudiente_telefono', None)
@@ -180,33 +170,34 @@ class UserSerializer(serializers.ModelSerializer):
         especialidad = validated_data.pop('especialidad', None)
         titulo = validated_data.pop('titulo', None)
 
-        # Crear usuario base (asegurando nombres y apellidos)
-        user = User.objects.create(**validated_data)
-        if password:
-            user.set_password(password)
-        user.save()
+        temporary_password = generate_temporary_password()
 
-        # Crear perfil según el rol
-        if role == "STUDENT":
-            StudentProfile.objects.create(
-                user=user,
-                grado=grado or "",
-                acudiente_nombre=acudiente_nombre or "",
-                acudiente_telefono=acudiente_telefono or "",
-                acudiente_email=acudiente_email or "",
+        with transaction.atomic():
+            user = User.objects.create_user(
+                password=temporary_password,
+                must_change_password=True,
+                **validated_data,
             )
-        elif role == "TEACHER":
-            TeacherProfile.objects.create(
-                user=user,
-                especialidad=especialidad or "",
-                titulo=titulo or "",
-            )
+
+            if role == "STUDENT":
+                StudentProfile.objects.create(
+                    user=user,
+                    grado=grado or "",
+                    acudiente_nombre=acudiente_nombre or "",
+                    acudiente_telefono=acudiente_telefono or "",
+                    acudiente_email=acudiente_email or "",
+                )
+            elif role == "TEACHER":
+                TeacherProfile.objects.create(
+                    user=user,
+                    especialidad=especialidad or "",
+                    titulo=titulo or "",
+                )
+
+            send_welcome_credentials_email(user, temporary_password)
 
         return user
 
-    # -------------------------------
-    # ACTUALIZACIÓN DE USUARIO + PERFIL
-    # -------------------------------
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
         role = validated_data.get('role', instance.role)
@@ -225,7 +216,6 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
 
-        # Actualizar o crear perfil
         if role == "STUDENT":
             StudentProfile.objects.update_or_create(
                 user=instance,

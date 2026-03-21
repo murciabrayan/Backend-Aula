@@ -1,22 +1,27 @@
-from collections import defaultdict
+﻿from collections import defaultdict
+from datetime import timedelta
+
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from rest_framework import status, viewsets, permissions
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import User
-from courses.models import Course
 from assignments.models import Assignment, Submission
 from attendance.models import Attendance
+from courses.models import Course
 from notifications.models import Notification
-from .models import AcademicAlert
+
+from .models import AcademicAlert, AcademicAlertEvent
 from .serializers import (
     AcademicAlertSerializer,
-    ResolveAcademicAlertSerializer,
+    AdminCloseAlertSerializer,
+    AdminInitialReviewSerializer,
+    TeacherFollowUpSerializer,
 )
 
 
@@ -28,6 +33,11 @@ ABSENCE_CRITICAL_THRESHOLD = 5
 
 MISSING_ASSIGNMENTS_WARNING_THRESHOLD = 2
 MISSING_ASSIGNMENTS_CRITICAL_THRESHOLD = 4
+
+FOLLOW_UP_DELAY_DAYS = 7
+
+FINAL_STATUSES = {"RESOLVED_POSITIVE", "RESOLVED_NEGATIVE"}
+TEACHER_PENDING_STATUSES = {"TEACHER_INITIAL_PENDING", "TEACHER_FINAL_PENDING"}
 
 
 def avg_or_none(values):
@@ -62,7 +72,7 @@ def alert_level_for_missing_assignments(total_missing):
     return None
 
 
-def build_grade_alert_messages(student_name, avg_value, period):
+def build_grade_alert_messages(student_name, course_name, avg_value, period):
     avg_text = f"{avg_value:.1f}" if avg_value is not None else "sin promedio"
     return {
         "title": f"Alerta por bajo rendimiento - Periodo {period}",
@@ -71,17 +81,17 @@ def build_grade_alert_messages(student_name, avg_value, period):
             "por debajo del nivel esperado. Revisa tus calificaciones y busca apoyo con tu docente."
         ),
         "message_teacher": (
-            f"El estudiante {student_name} presenta bajo rendimiento académico en el periodo {period}, "
+            f"El estudiante {student_name} del curso {course_name} presenta bajo rendimiento académico en el periodo {period}, "
             f"con promedio actual de {avg_text}. Se recomienda seguimiento."
         ),
         "message_admin": (
-            f"Se detectó una alerta académica por bajo rendimiento para {student_name} "
+            f"Se detectó una alerta académica por bajo rendimiento para {student_name} del curso {course_name} "
             f"en el periodo {period}, con promedio de {avg_text}."
         ),
     }
 
 
-def build_absence_alert_messages(student_name, total_absences, period):
+def build_absence_alert_messages(student_name, course_name, total_absences, period):
     return {
         "title": f"Alerta por inasistencia - Periodo {period}",
         "message_student": (
@@ -89,17 +99,17 @@ def build_absence_alert_messages(student_name, total_absences, period):
             "Esto puede afectar tu proceso académico."
         ),
         "message_teacher": (
-            f"El estudiante {student_name} acumula {total_absences} ausencias no justificadas "
+            f"El estudiante {student_name} del curso {course_name} acumula {total_absences} ausencias no justificadas "
             f"en el periodo {period}. Se recomienda acompañamiento."
         ),
         "message_admin": (
-            f"Se detectó riesgo por inasistencia para {student_name}. "
+            f"Se detectó riesgo por inasistencia para {student_name} del curso {course_name}. "
             f"Actualmente registra {total_absences} ausencias no justificadas en el periodo {period}."
         ),
     }
 
 
-def build_missing_alert_messages(student_name, total_missing, period):
+def build_missing_alert_messages(student_name, course_name, total_missing, period):
     return {
         "title": f"Alerta por tareas no entregadas - Periodo {period}",
         "message_student": (
@@ -107,14 +117,53 @@ def build_missing_alert_messages(student_name, total_missing, period):
             "Debes ponerte al día lo antes posible."
         ),
         "message_teacher": (
-            f"El estudiante {student_name} tiene {total_missing} actividades vencidas sin entregar "
+            f"El estudiante {student_name} del curso {course_name} tiene {total_missing} actividades vencidas sin entregar "
             f"en el periodo {period}."
         ),
         "message_admin": (
-            f"Se detectó incumplimiento académico para {student_name}, con "
+            f"Se detectó incumplimiento académico para {student_name} del curso {course_name}, con "
             f"{total_missing} actividades vencidas sin entregar en el periodo {period}."
         ),
     }
+
+
+def create_notifications(*, student=None, teacher=None, admins=None, title, student_message=None, teacher_message=None, admin_message=None):
+    notifications_to_create = []
+
+    if student and student_message:
+        notifications_to_create.append(
+            Notification(usuario=student, titulo=title, mensaje=student_message)
+        )
+
+    if teacher and teacher_message:
+        notifications_to_create.append(
+            Notification(usuario=teacher, titulo=title, mensaje=teacher_message)
+        )
+
+    for admin_user in admins or []:
+        if admin_message:
+            notifications_to_create.append(
+                Notification(usuario=admin_user, titulo=title, mensaje=admin_message)
+            )
+
+    if notifications_to_create:
+        Notification.objects.bulk_create(notifications_to_create)
+
+
+def create_alert_event(alert, *, event_type, title, notes="", actor=None, visible_to_student=False, metadata=None):
+    return AcademicAlertEvent.objects.create(
+        alert=alert,
+        event_type=event_type,
+        title=title,
+        notes=notes or "",
+        actor=actor,
+        visible_to_student=visible_to_student,
+        metadata=metadata or {},
+    )
+
+
+def get_admin_users():
+    return list(User.objects.filter(role="ADMIN", is_active=True))
 
 
 def create_or_update_alert(
@@ -139,56 +188,87 @@ def create_or_update_alert(
         alert_type=alert_type,
     ).first()
 
-    alert, created = AcademicAlert.objects.update_or_create(
-        student=student,
-        course=course,
-        period=period,
-        alert_type=alert_type,
-        defaults={
-            "level": level,
-            "status": "ACTIVE",
-            "title": title,
-            "message_student": message_student,
-            "message_teacher": message_teacher,
-            "message_admin": message_admin,
-            "metric_value": metric_value,
-            "threshold_value": threshold_value,
-            "details": details,
-            "resolved_by": None,
-            "resolution_notes": "",
-            "resolved_at": None,
-        },
-    )
-
+    created = previous_alert is None
+    reopened = False
     should_notify = created
-    if previous_alert and not created:
+
+    if created:
+        alert = AcademicAlert.objects.create(
+            student=student,
+            course=course,
+            period=period,
+            alert_type=alert_type,
+            level=level,
+            status="TEACHER_INITIAL_PENDING",
+            title=title,
+            message_student=message_student,
+            message_teacher=message_teacher,
+            message_admin=message_admin,
+            metric_value=metric_value,
+            threshold_value=threshold_value,
+            details=details,
+        )
+        create_alert_event(
+            alert,
+            event_type="ALERT_CREATED",
+            title="Alerta inicial generada",
+            notes=message_student,
+            visible_to_student=True,
+            metadata={"period": period, "level": level},
+        )
+    else:
+        alert = previous_alert
         should_notify = (
-            previous_alert.status != "ACTIVE"
-            or previous_alert.level != level
+            previous_alert.level != level
             or previous_alert.metric_value != metric_value
             or previous_alert.message_student != message_student
         )
 
+        if previous_alert.status in FINAL_STATUSES:
+            reopened = True
+            should_notify = True
+            alert.status = "TEACHER_INITIAL_PENDING"
+            alert.next_follow_up_due_at = None
+            alert.resolved_by = None
+            alert.resolution_notes = ""
+            alert.resolved_at = None
+
+        alert.level = level
+        alert.title = title
+        alert.message_student = message_student
+        alert.message_teacher = message_teacher
+        alert.message_admin = message_admin
+        alert.metric_value = metric_value
+        alert.threshold_value = threshold_value
+        alert.details = details
+        alert.save()
+
+        if reopened:
+            create_alert_event(
+                alert,
+                event_type="ALERT_REOPENED",
+                title="La alerta volvió a activarse",
+                notes=message_student,
+                visible_to_student=True,
+                metadata={"period": period, "level": level},
+            )
+
     if should_notify:
-        Notification.objects.create(
-            usuario=student,
-            titulo=title,
-            mensaje=message_student,
+        create_notifications(
+            student=student,
+            teacher=course.docente if course.docente_id else None,
+            admins=get_admin_users(),
+            title=title,
+            student_message=message_student,
+            teacher_message=message_teacher,
+            admin_message=message_admin,
         )
 
     return alert, created
 
 
 def resolve_missing_alerts(student, course, period, active_types):
-    AcademicAlert.objects.filter(
-        student=student,
-        course=course,
-        period=period,
-        status="ACTIVE",
-    ).exclude(alert_type__in=active_types).update(
-        status="RESOLVED",
-        resolved_at=timezone.now(),
-    )
+    return None
 
 
 def calculate_student_average_for_period(student, course, period):
@@ -263,7 +343,7 @@ def generate_alerts_for_course(course, period):
         )
         grade_level = alert_level_for_grade(avg_value)
         if grade_level:
-            messages = build_grade_alert_messages(student_name, avg_value, period)
+            messages = build_grade_alert_messages(student_name, course.nombre, avg_value, period)
             alert, _ = create_or_update_alert(
                 student=student,
                 course=course,
@@ -288,7 +368,7 @@ def generate_alerts_for_course(course, period):
         total_absences = calculate_student_absences_for_period(student, course, period)
         absence_level = alert_level_for_absences(total_absences)
         if absence_level:
-            messages = build_absence_alert_messages(student_name, total_absences, period)
+            messages = build_absence_alert_messages(student_name, course.nombre, total_absences, period)
             alert, _ = create_or_update_alert(
                 student=student,
                 course=course,
@@ -313,7 +393,7 @@ def generate_alerts_for_course(course, period):
         total_missing = len(missing_assignments)
         missing_level = alert_level_for_missing_assignments(total_missing)
         if missing_level:
-            messages = build_missing_alert_messages(student_name, total_missing, period)
+            messages = build_missing_alert_messages(student_name, course.nombre, total_missing, period)
             alert, _ = create_or_update_alert(
                 student=student,
                 course=course,
@@ -347,8 +427,49 @@ def generate_alerts_for_course(course, period):
     return generated_alerts
 
 
+def trigger_scheduled_follow_up_requests():
+    now = timezone.now()
+    due_alerts = AcademicAlert.objects.filter(
+        status="MONITORING",
+        next_follow_up_due_at__isnull=False,
+        next_follow_up_due_at__lte=now,
+    ).select_related("student", "course", "course__docente")
+
+    triggered = 0
+
+    for alert in due_alerts:
+        alert.status = "TEACHER_FINAL_PENDING"
+        alert.next_follow_up_due_at = None
+        alert.save(update_fields=["status", "next_follow_up_due_at", "updated_at"])
+
+        create_alert_event(
+            alert,
+            event_type="SECOND_FOLLOW_UP_REQUESTED",
+            title="Segunda revisión solicitada",
+            notes="Han pasado siete días desde la aprobación del seguimiento inicial.",
+            visible_to_student=False,
+            metadata={"requested_at": now.isoformat()},
+        )
+
+        create_notifications(
+            teacher=alert.course.docente if alert.course.docente_id else None,
+            title=f"Seguimiento pendiente - {alert.title}",
+            teacher_message=(
+                f"Debes confirmar si hubo mejora en la alerta de {alert.student.first_name} "
+                f"{alert.student.last_name} del curso {alert.course.nombre}."
+            ),
+        )
+        triggered += 1
+
+    return triggered
+
+
 class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = AcademicAlert.objects.all().select_related("student", "course", "resolved_by")
+    queryset = AcademicAlert.objects.all().select_related(
+        "student",
+        "course",
+        "resolved_by",
+    ).prefetch_related("events__actor")
     serializer_class = AcademicAlertSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -358,7 +479,7 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
             "student",
             "course",
             "resolved_by",
-        )
+        ).prefetch_related("events__actor")
 
         period = self.request.query_params.get("period")
         if period:
@@ -391,10 +512,7 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
     def generate(self, request):
         user = request.user
         if user.role not in ["ADMIN", "TEACHER"]:
-            return Response(
-                {"detail": "No autorizado"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
         course_id = request.data.get("course")
         period = request.data.get("period")
@@ -425,36 +543,180 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @action(detail=True, methods=["post"], url_path="resolve")
-    def resolve(self, request, pk=None):
+    @action(detail=True, methods=["post"], url_path="teacher-follow-up")
+    def teacher_follow_up(self, request, pk=None):
         user = request.user
-        if user.role not in ["ADMIN", "TEACHER"]:
-            return Response(
-                {"detail": "No autorizado"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        if user.role != "TEACHER":
+            return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
         alert = self.get_object()
-
-        if user.role == "TEACHER" and alert.course.docente_id != user.id:
+        if alert.course.docente_id != user.id:
             return Response(
-                {"detail": "No autorizado para resolver esta alerta."},
+                {"detail": "No autorizado para gestionar esta alerta."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        serializer = ResolveAcademicAlertSerializer(data=request.data)
+        if alert.status not in TEACHER_PENDING_STATUSES:
+            return Response(
+                {"detail": "Esta alerta no está pendiente de seguimiento docente."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = TeacherFollowUpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        alert.status = "RESOLVED"
-        alert.resolved_by = user
-        alert.resolution_notes = serializer.validated_data.get("resolution_notes", "")
-        alert.resolved_at = timezone.now()
-        alert.save()
+        notes = serializer.validated_data.get("notes", "")
+        improvement_confirmed = serializer.validated_data.get("improvement_confirmed")
 
-        return Response(
-            AcademicAlertSerializer(alert).data,
-            status=status.HTTP_200_OK,
+        if alert.status == "TEACHER_INITIAL_PENDING":
+            alert.status = "ADMIN_INITIAL_REVIEW"
+            event_type = "TEACHER_INITIAL_SUBMITTED"
+            event_title = "Primer seguimiento docente enviado"
+            metadata = {}
+        else:
+            alert.status = "ADMIN_FINAL_REVIEW"
+            event_type = "TEACHER_FINAL_SUBMITTED"
+            event_title = "Segundo seguimiento docente enviado"
+            metadata = {"improvement_confirmed": bool(improvement_confirmed)}
+
+        alert.save(update_fields=["status", "updated_at"])
+
+        create_alert_event(
+            alert,
+            event_type=event_type,
+            title=event_title,
+            notes=notes,
+            actor=user,
+            visible_to_student=True,
+            metadata=metadata,
         )
+
+        create_notifications(
+            admins=get_admin_users(),
+            title=f"Seguimiento enviado - {alert.title}",
+            admin_message=(
+                f"El docente registró un seguimiento para la alerta de {alert.student.first_name} "
+                f"{alert.student.last_name} del curso {alert.course.nombre}."
+            ),
+        )
+
+        return Response(AcademicAlertSerializer(alert).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="admin-review")
+    def admin_review(self, request, pk=None):
+        user = request.user
+        if user.role != "ADMIN":
+            return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
+
+        alert = self.get_object()
+        if alert.status != "ADMIN_INITIAL_REVIEW":
+            return Response(
+                {"detail": "Esta alerta no está pendiente de revisión administrativa inicial."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = AdminInitialReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        decision = serializer.validated_data["decision"]
+        notes = serializer.validated_data.get("notes", "")
+
+        if decision == "APPROVE":
+            alert.status = "MONITORING"
+            alert.next_follow_up_due_at = timezone.now() + timedelta(days=FOLLOW_UP_DELAY_DAYS)
+            event_type = "ADMIN_REVIEW_APPROVED"
+            event_title = "Seguimiento inicial aprobado"
+            teacher_message = (
+                f"El seguimiento inicial de la alerta de {alert.student.first_name} {alert.student.last_name} del curso {alert.course.nombre} "
+                "fue aprobado. En siete días se solicitará una nueva verificación."
+            )
+        else:
+            alert.status = "TEACHER_INITIAL_PENDING"
+            alert.next_follow_up_due_at = None
+            event_type = "ADMIN_REVIEW_REJECTED"
+            event_title = "Seguimiento inicial rechazado"
+            teacher_message = (
+                f"El seguimiento inicial de la alerta de {alert.student.first_name} {alert.student.last_name} del curso {alert.course.nombre} "
+                "requiere ajustes. Debes registrarlo nuevamente."
+            )
+
+        alert.save(update_fields=["status", "next_follow_up_due_at", "updated_at"])
+
+        create_alert_event(
+            alert,
+            event_type=event_type,
+            title=event_title,
+            notes=notes,
+            actor=user,
+            visible_to_student=False,
+            metadata={"decision": decision},
+        )
+
+        create_notifications(
+            teacher=alert.course.docente if alert.course.docente_id else None,
+            title=f"Revisión administrativa - {alert.title}",
+            teacher_message=teacher_message,
+        )
+
+        return Response(AcademicAlertSerializer(alert).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="admin-close")
+    def admin_close(self, request, pk=None):
+        user = request.user
+        if user.role != "ADMIN":
+            return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
+
+        alert = self.get_object()
+        if alert.status != "ADMIN_FINAL_REVIEW":
+            return Response(
+                {"detail": "Esta alerta no está pendiente de cierre final."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = AdminCloseAlertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        outcome = serializer.validated_data["outcome"]
+        notes = serializer.validated_data.get("notes", "")
+
+        alert.status = "RESOLVED_POSITIVE" if outcome == "POSITIVE" else "RESOLVED_NEGATIVE"
+        alert.resolved_by = user
+        alert.resolution_notes = notes
+        alert.resolved_at = timezone.now()
+        alert.next_follow_up_due_at = None
+        alert.save(
+            update_fields=[
+                "status",
+                "resolved_by",
+                "resolution_notes",
+                "resolved_at",
+                "next_follow_up_due_at",
+                "updated_at",
+            ]
+        )
+
+        create_alert_event(
+            alert,
+            event_type="ADMIN_CLOSED_POSITIVE" if outcome == "POSITIVE" else "ADMIN_CLOSED_NEGATIVE",
+            title="Cierre final satisfactorio" if outcome == "POSITIVE" else "Cierre final no satisfactorio",
+            notes=notes,
+            actor=user,
+            visible_to_student=True,
+            metadata={"outcome": outcome},
+        )
+
+        create_notifications(
+            student=alert.student,
+            teacher=alert.course.docente if alert.course.docente_id else None,
+            title=f"Cierre de alerta - {alert.title}",
+            student_message="Tu proceso de seguimiento académico recibió una decisión final. Revisa el módulo de alertas.",
+            teacher_message=(
+                f"La alerta de {alert.student.first_name} {alert.student.last_name} del curso {alert.course.nombre} tuvo un cierre final "
+                f"{('satisfactorio' if outcome == 'POSITIVE' else 'no satisfactorio')} por parte de coordinación."
+            ),
+        )
+
+        return Response(AcademicAlertSerializer(alert).data, status=status.HTTP_200_OK)
 
 
 class StudentAcademicSummaryView(APIView):
@@ -464,10 +726,7 @@ class StudentAcademicSummaryView(APIView):
         user = request.user
 
         if user.role != "STUDENT":
-            return Response(
-                {"detail": "No autorizado"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
         period = request.query_params.get("period")
         if not period:

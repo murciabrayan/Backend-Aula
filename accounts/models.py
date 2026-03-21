@@ -40,6 +40,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     google_account = models.BooleanField(default=False)
+    must_change_password = models.BooleanField(default=False)
 
     objects = UserManager()
 
