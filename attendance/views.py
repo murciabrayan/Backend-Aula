@@ -7,6 +7,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from accounts.models import User
+from accounts.permissions import IsAdminRole
 from courses.models import Course
 from .models import Attendance, AttendanceEvent
 from .serializers import AttendanceSerializer, BulkAttendanceSerializer
@@ -104,6 +105,11 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     serializer_class = AttendanceSerializer
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self):
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            return [IsAdminRole()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user

@@ -4,12 +4,28 @@ from rest_framework.response import Response
 from .models import Course, Subject, Area
 from .serializers import CourseSerializer, SubjectSerializer, AreaSerializer
 from accounts.models import User
+from accounts.permissions import IsAdminRoleOrReadOnly
 
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminRoleOrReadOnly]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Course.objects.all().prefetch_related("estudiantes", "materias", "areas")
+
+        if user.role == "ADMIN":
+            return queryset
+
+        if user.role == "TEACHER":
+            return queryset.filter(docente=user)
+
+        if user.role == "STUDENT":
+            return queryset.filter(estudiantes=user)
+
+        return Course.objects.none()
 
     @action(detail=True, methods=['post'], url_path='add-students')
     def add_students(self, request, pk=None):
@@ -84,7 +100,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 class AreaViewSet(viewsets.ModelViewSet):
     queryset = Area.objects.all()
     serializer_class = AreaSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminRoleOrReadOnly]
 
     def get_queryset(self):
         user = self.request.user
@@ -109,7 +125,7 @@ class AreaViewSet(viewsets.ModelViewSet):
 class SubjectViewSet(viewsets.ModelViewSet):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminRoleOrReadOnly]
 
     def get_queryset(self):
         user = self.request.user

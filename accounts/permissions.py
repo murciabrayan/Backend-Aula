@@ -1,0 +1,32 @@
+from rest_framework.permissions import SAFE_METHODS, BasePermission
+
+
+class IsAdminRole(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and (
+                getattr(user, "role", "") == "ADMIN"
+                or user.is_staff
+                or user.is_superuser
+            )
+        )
+
+
+class IsAdminRoleOrReadOnly(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+
+        if not user or not user.is_authenticated:
+            return False
+
+        if request.method in SAFE_METHODS:
+            return True
+
+        return bool(
+            getattr(user, "role", "") == "ADMIN"
+            or user.is_staff
+            or user.is_superuser
+        )

@@ -4,6 +4,7 @@ from django.template.loader import render_to_string
 from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from .models import (
@@ -40,6 +41,7 @@ class LandingContactMessageView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
     parser_classes = [JSONParser, FormParser, MultiPartParser]
+    throttle_classes = [AnonRateThrottle]
 
     def post(self, request):
         name = (request.data.get("name") or "").strip()

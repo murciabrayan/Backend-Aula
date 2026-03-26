@@ -52,6 +52,8 @@ class CourseSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    student_details = serializers.SerializerMethodField()
+
     areas = AreaSerializer(
     many=True,
     read_only=True
@@ -65,6 +67,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "description",
             "teacher",
             "students",
+            "student_details",
             "subjects",
             "areas",
         ]
@@ -101,3 +104,14 @@ class CourseSerializer(serializers.ModelSerializer):
             instance.estudiantes.set(estudiantes_data)
 
         return instance
+
+    def get_student_details(self, obj):
+        return [
+            {
+                "id": student.id,
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+                "email": student.email,
+            }
+            for student in obj.estudiantes.filter(role="STUDENT").order_by("first_name", "last_name")
+        ]

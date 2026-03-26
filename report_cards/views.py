@@ -27,6 +27,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 from accounts.models import User
+from accounts.permissions import IsAdminRoleOrReadOnly
 from courses.models import Course, Subject
 from assignments.models import Assignment, Submission
 from attendance.models import Attendance
@@ -47,7 +48,7 @@ RECTOR_FIJO = "Leonardo Murcia"
 class IndicatorViewSet(viewsets.ModelViewSet):
     queryset = Indicator.objects.all()
     serializer_class = IndicatorSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminRoleOrReadOnly]
 
     def get_queryset(self):
         user = self.request.user
@@ -63,7 +64,7 @@ class SubjectIndicatorAssignmentViewSet(viewsets.ModelViewSet):
         "indicador",
     )
     serializer_class = SubjectIndicatorAssignmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminRoleOrReadOnly]
 
     def get_queryset(self):
         user = self.request.user

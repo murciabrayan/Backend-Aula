@@ -7,12 +7,26 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(name, default=None):
+    value = os.getenv(name)
+    if value is None:
+        return default or []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
 # ==============================
 # SEGURIDAD
 # ==============================
-SECRET_KEY = 'django-insecure-kjjoj+*2ro8wmv)*@=bpahju2i%avd)dyq0+6btr9fn8+ah5@*'
-DEBUG = True
-ALLOWED_HOSTS = []
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-kjjoj+*2ro8wmv)*@=bpahju2i%avd)dyq0+6btr9fn8+ah5@*')
+DEBUG = env_bool('DJANGO_DEBUG', True)
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', ['localhost', '127.0.0.1'])
 
 # ==============================
 # APPS
@@ -84,21 +98,33 @@ WSGI_APPLICATION = 'backend_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'gimnasio',
-        'USER': 'postgres',
-        'PASSWORD': 'cafune123',
-        'HOST': 'localhost',
-        'PORT': '5434',
+        'NAME': os.getenv('DB_NAME', 'gimnasio'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'cafune123'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5434'),
     }
 }
 
 # ==============================
 # CORS
 # ==============================
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",
-    "http://localhost:5173",
-]
+CORS_ALLOWED_ORIGINS = env_list(
+    'CORS_ALLOWED_ORIGINS',
+    [
+        "http://localhost:4200",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+)
+CSRF_TRUSTED_ORIGINS = env_list(
+    'CSRF_TRUSTED_ORIGINS',
+    [
+        "http://localhost:4200",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+)
 
 # ==============================
 # AUTH USER
@@ -126,7 +152,10 @@ USE_TZ = True
 # ==============================
 # GOOGLE OAUTH
 # ==============================
-GOOGLE_CLIENT_ID = "509271286435-fpgfh78rc1vunkjpeatolrndho8cn96t.apps.googleusercontent.com"
+GOOGLE_CLIENT_ID = os.getenv(
+    "GOOGLE_CLIENT_ID",
+    "509271286435-fpgfh78rc1vunkjpeatolrndho8cn96t.apps.googleusercontent.com",
+)
 
 # ==============================
 # STATIC & MEDIA
@@ -144,7 +173,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': os.getenv('DRF_THROTTLE_ANON', '30/min'),
+        'user': os.getenv('DRF_THROTTLE_USER', '120/min'),
+    },
 }
 
 # ==============================
@@ -154,8 +191,22 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'branfer60@gmail.com'
-EMAIL_HOST_PASSWORD = 'bnla xiox mgzh wjue'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'branfer60@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'bnla xiox mgzh wjue')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-FRONTEND_URL = 'http://localhost:5173'
-LANDING_CONTACT_EMAIL = 'branfer60@gmail.com'
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+LANDING_CONTACT_EMAIL = os.getenv('LANDING_CONTACT_EMAIL', DEFAULT_FROM_EMAIL)
+
+# ==============================
+# CABECERAS / COOKIES SEGURAS
+# ==============================
+X_FRAME_OPTIONS = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', not DEBUG)
+CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', False)
+SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '0' if DEBUG else '31536000'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', not DEBUG)
+SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', not DEBUG)

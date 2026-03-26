@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .file_validators import validate_pdf_file
+from .file_validators import validate_image_file, validate_pdf_file
 from .models import StudentProfile, TeacherProfile, User, UserDocument
 from .onboarding import generate_temporary_password, send_welcome_credentials_email
 from .password_rules import validate_password_strength
@@ -84,6 +84,7 @@ class UserSerializer(serializers.ModelSerializer):
     documents = UserDocumentSerializer(read_only=True, many=True)
     photo_url = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
+    course_names = serializers.SerializerMethodField()
 
     grado = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_nombre = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -112,6 +113,7 @@ class UserSerializer(serializers.ModelSerializer):
             'is_active',
             'must_change_password',
             'password',
+            'course_names',
             'student_profile',
             'teacher_profile',
             'documents',
@@ -133,6 +135,13 @@ class UserSerializer(serializers.ModelSerializer):
     def get_avatar_url(self, obj):
         return obj.get_avatar_url(self.context.get("request"))
 
+    def get_course_names(self, obj):
+        if obj.role == "STUDENT":
+            return list(obj.cursos.order_by("nombre").values_list("nombre", flat=True))
+        if obj.role == "TEACHER":
+            return list(obj.cursos_asignados.order_by("nombre").values_list("nombre", flat=True))
+        return []
+
     def validate_password(self, value):
         if value:
             try:
@@ -140,6 +149,12 @@ class UserSerializer(serializers.ModelSerializer):
             except ValueError as exc:
                 raise serializers.ValidationError(str(exc))
         return value
+
+    def validate_profile_photo(self, value):
+        try:
+            return validate_image_file(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
 
     def validate_cedula(self, value):
         if value and not str(value).isdigit():

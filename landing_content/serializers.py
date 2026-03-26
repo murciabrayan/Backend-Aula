@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from accounts.file_validators import validate_image_file
+
 from .models import (
     LandingCalendarEntry,
     LandingDocument,
@@ -43,6 +45,12 @@ class LandingNewsSerializer(MediaUrlMixin):
     def get_image_url(self, obj):
         return self.build_absolute_media_url(obj.image)
 
+    def validate_image(self, value):
+        try:
+            return validate_image_file(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+
 
 class LandingGalleryItemSerializer(MediaUrlMixin):
     image_url = serializers.SerializerMethodField()
@@ -63,6 +71,12 @@ class LandingGalleryItemSerializer(MediaUrlMixin):
 
     def get_image_url(self, obj):
         return self.build_absolute_media_url(obj.image)
+
+    def validate_image(self, value):
+        try:
+            return validate_image_file(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
 
 
 class LandingDocumentSerializer(MediaUrlMixin):

@@ -16,6 +16,11 @@ class AssignmentViewSet(viewsets.ModelViewSet):
     serializer_class = AssignmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [permissions.IsAuthenticated()]
+        return [permission() for permission in self.permission_classes]
+
     def get_queryset(self):
         user = self.request.user
         queryset = Assignment.objects.all()
@@ -61,7 +66,52 @@ class AssignmentViewSet(viewsets.ModelViewSet):
                 "Solo el docente asignado al curso puede crear tareas en esta materia."
             )
 
+        assignment = serializer.save()
+
+        students = list(materia.curso.estudiantes.filter(role='STUDENT', is_active=True))
+        if students:
+            Notification.objects.bulk_create([
+                Notification(
+                    usuario=student,
+                    titulo=f"Nueva tarea en {materia.nombre}",
+                    mensaje=(
+                        f"Se publicó la tarea '{assignment.titulo}' para la materia "
+                        f"{materia.nombre} del curso {materia.curso.nombre}."
+                    ),
+                )
+                for student in students
+            ])
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        materia = serializer.validated_data.get('materia', serializer.instance.materia)
+
+        if user.role != 'TEACHER':
+            raise PermissionDenied(
+                "Solo los docentes pueden editar tareas."
+            )
+
+        if materia.curso.docente != user:
+            raise PermissionDenied(
+                "Solo el docente asignado al curso puede editar tareas en esta materia."
+            )
+
         serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+
+        if user.role != 'TEACHER':
+            raise PermissionDenied(
+                "Solo los docentes pueden eliminar tareas."
+            )
+
+        if instance.materia.curso.docente != user:
+            raise PermissionDenied(
+                "Solo el docente asignado al curso puede eliminar tareas en esta materia."
+            )
+
+        instance.delete()
 
 
 # =========================
@@ -71,6 +121,11 @@ class SubmissionViewSet(viewsets.ModelViewSet):
     queryset = Submission.objects.all()
     serializer_class = SubmissionSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy", "calificar"]:
+            return [permissions.IsAuthenticated()]
+        return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
         user = self.request.user
@@ -102,6 +157,27 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             )
 
         serializer.save(estudiante=user)
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        entrega = serializer.instance
+
+        if user.role != 'STUDENT' or entrega.estudiante_id != user.id:
+            raise PermissionDenied(
+                "Solo el estudiante propietario puede editar su entrega."
+            )
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+
+        if user.role != 'STUDENT' or instance.estudiante_id != user.id:
+            raise PermissionDenied(
+                "Solo el estudiante propietario puede eliminar su entrega."
+            )
+
+        instance.delete()
 
     # =========================
     # CALIFICAR ENTREGA

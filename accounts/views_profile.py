@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
 
+from .file_validators import validate_image_file
 from .models import AdminProfile, StudentProfile, TeacherProfile
 from .password_rules import validate_password_strength
 
@@ -71,7 +72,13 @@ def user_profile(request):
         user.profile_photo = None
 
     if "profile_photo" in request.FILES:
-        user.profile_photo = request.FILES["profile_photo"]
+        try:
+            user.profile_photo = validate_image_file(request.FILES["profile_photo"])
+        except ValueError as exc:
+            return Response(
+                {"error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     user.save()
 
