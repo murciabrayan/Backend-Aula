@@ -209,9 +209,10 @@ REST_FRAMEWORK = {
 # EMAIL
 # ==============================
 EMAIL_BACKEND = 'backend_project.email_backend.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+EMAIL_USE_SSL = env_bool('EMAIL_USE_SSL', False)
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'branfer60@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'bnla xiox mgzh wjue').replace(' ', '')
