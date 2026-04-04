@@ -75,6 +75,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 "El usuario fue creado, pero no se pudo enviar el correo de bienvenida. "
                 "Puedes compartir la clave temporal manualmente o revisar la configuracion SMTP."
             )
+            response.data["warning_detail"] = warning
         return response
 
     def perform_create(self, serializer):
