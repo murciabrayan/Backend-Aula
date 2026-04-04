@@ -5,8 +5,9 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.conf.urls.static import static
+from django import get_version
 
-# 🔹 Importaciones
+# Importaciones
 from accounts.views_profile import user_profile, change_password
 from accounts.views import (
     complete_initial_password,
@@ -20,11 +21,12 @@ from accounts.views_password_reset import (
     reset_password,
 )
 from accounts.views_google import google_login
+from accounts.models import User
 
-# 👇 IMPORTAR VIEWSETS
+# IMPORTAR VIEWSETS
 from courses.views import CourseViewSet, SubjectViewSet, AreaViewSet
 
-# 🔹 Routers
+# Routers
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'students', StudentProfileViewSet)
@@ -35,13 +37,19 @@ router.register(r'areas', AreaViewSet)
 
 
 def root_status(_request):
-    return JsonResponse(
-        {
-            "status": "ok",
-            "service": "proyecto-aula-backend",
-            "message": "Backend activo",
-        }
-    )
+    response = {
+        'status': 'ok',
+        'service': 'proyecto-aula-backend',
+        'message': 'Backend activo',
+        'django_version': get_version(),
+    }
+    try:
+        response['db'] = 'ok'
+        response['user_count'] = User.objects.count()
+    except Exception as exc:
+        response['db'] = 'error'
+        response['db_error'] = str(exc)
+    return JsonResponse(response)
 
 urlpatterns = [
     path('', root_status, name='root_status'),
@@ -76,10 +84,10 @@ urlpatterns = [
     path('api/calendar/', include('calendar_app.urls')),
 
     # Boletines
-    path("api/report-cards/", include("report_cards.urls")),
+    path('api/report-cards/', include('report_cards.urls')),
 
     # ASISTENCIA
-    path("api/", include("attendance.urls")),
+    path('api/', include('attendance.urls')),
     
     # Alertas
     path('api/academic-alerts/', include('academic_alerts.urls')),
