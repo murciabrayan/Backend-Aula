@@ -47,6 +47,20 @@ class UserViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        created_user = getattr(self, "instance", None)
+        warning = getattr(created_user, "_welcome_email_error", None)
+        if warning:
+            response.data["warning"] = (
+                "El usuario fue creado, pero no se pudo enviar el correo de bienvenida. "
+                "Puedes compartir la clave temporal manualmente o revisar la configuracion SMTP."
+            )
+        return response
+
+    def perform_create(self, serializer):
+        self.instance = serializer.save()
+
     @action(detail=True, methods=["post"], parser_classes=[MultiPartParser, FormParser])
     def documents(self, request, pk=None):
         user = self.get_object()

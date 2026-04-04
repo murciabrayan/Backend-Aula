@@ -1,3 +1,5 @@
+import logging
+
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -6,6 +8,8 @@ from .file_validators import validate_image_file, validate_pdf_file
 from .models import StudentProfile, TeacherProfile, User, UserDocument
 from .onboarding import generate_temporary_password, send_welcome_credentials_email
 from .password_rules import validate_password_strength
+
+logger = logging.getLogger(__name__)
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -209,7 +213,11 @@ class UserSerializer(serializers.ModelSerializer):
                     titulo=titulo or "",
                 )
 
-            send_welcome_credentials_email(user, temporary_password)
+            try:
+                send_welcome_credentials_email(user, temporary_password)
+            except Exception as exc:
+                logger.exception("No se pudo enviar el correo de bienvenida para %s", user.email)
+                user._welcome_email_error = str(exc)
 
         return user
 
