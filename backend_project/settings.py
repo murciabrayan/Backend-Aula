@@ -141,6 +141,9 @@ for allowed_host in ALLOWED_HOSTS:
         trusted_origin = f'https://{allowed_host}'
     if trusted_origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(trusted_origin)
+for railway_origin in ('https://*.up.railway.app', 'https://*.railway.app'):
+    if railway_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(railway_origin)
 
 # ==============================
 # AUTH USER
