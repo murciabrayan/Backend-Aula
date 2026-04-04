@@ -9,4 +9,5 @@ djangorestframework
 djangorestframework-simplejwt
 Pillow
 google-auth
+requests
 reportlab
