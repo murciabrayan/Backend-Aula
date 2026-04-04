@@ -50,7 +50,6 @@ INSTALLED_APPS = [
     'notifications',
     'calendar_app',
     'report_cards',
-
     'academic_alerts',
     'attendance',
     'landing_content',
@@ -120,19 +119,28 @@ else:
 CORS_ALLOWED_ORIGINS = env_list(
     'CORS_ALLOWED_ORIGINS',
     [
-        "http://localhost:4200",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
+        'http://localhost:4200',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
     ],
 )
 CSRF_TRUSTED_ORIGINS = env_list(
     'CSRF_TRUSTED_ORIGINS',
     [
-        "http://localhost:4200",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
+        'http://localhost:4200',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
     ],
 )
+for allowed_host in ALLOWED_HOSTS:
+    if allowed_host.startswith('.'):
+        continue
+    if 'localhost' in allowed_host or allowed_host.replace('.', '').isdigit():
+        trusted_origin = f'http://{allowed_host}'
+    else:
+        trusted_origin = f'https://{allowed_host}'
+    if trusted_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(trusted_origin)
 
 # ==============================
 # AUTH USER
@@ -161,8 +169,8 @@ USE_TZ = True
 # GOOGLE OAUTH
 # ==============================
 GOOGLE_CLIENT_ID = os.getenv(
-    "GOOGLE_CLIENT_ID",
-    "509271286435-fpgfh78rc1vunkjpeatolrndho8cn96t.apps.googleusercontent.com",
+    'GOOGLE_CLIENT_ID',
+    '509271286435-fpgfh78rc1vunkjpeatolrndho8cn96t.apps.googleusercontent.com',
 )
 
 # ==============================
