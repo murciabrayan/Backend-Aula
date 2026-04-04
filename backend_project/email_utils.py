@@ -2,6 +2,7 @@ import base64
 from dataclasses import dataclass
 from email.mime.image import MIMEImage
 from pathlib import Path
+from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
@@ -24,6 +25,13 @@ def _load_logo_data_uri():
     suffix = LOGO_PATH.suffix.lower().lstrip(".") or "png"
     mime_type = f"image/{'jpeg' if suffix == 'jpg' else suffix}"
     return f"data:{mime_type};base64,{encoded}"
+
+
+def _get_public_logo_url():
+    frontend_url = getattr(settings, "FRONTEND_URL", "").strip()
+    if not frontend_url:
+        return None
+    return urljoin(f"{frontend_url.rstrip('/')}/", "logo-email.png")
 
 
 @dataclass
@@ -115,7 +123,7 @@ def build_html_email(*, subject, to, template_name, context, from_email=None):
     html_context = {
         **context,
         "logo_cid": LOGO_CID,
-        "logo_src": _load_logo_data_uri(),
+        "logo_src": _get_public_logo_url() or _load_logo_data_uri(),
     }
     html_message = render_to_string(template_name, html_context)
     text_message = strip_tags(html_message)
