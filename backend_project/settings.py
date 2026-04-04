@@ -219,6 +219,8 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'bnla xiox mgzh wjue').re
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 LANDING_CONTACT_EMAIL = os.getenv('LANDING_CONTACT_EMAIL', DEFAULT_FROM_EMAIL)
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '').strip()
+RESEND_FROM_EMAIL = os.getenv('RESEND_FROM_EMAIL', 'onboarding@resend.dev').strip()
 
 # ==============================
 # CABECERAS / COOKIES SEGURAS

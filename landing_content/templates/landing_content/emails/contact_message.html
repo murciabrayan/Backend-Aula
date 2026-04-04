@@ -13,7 +13,11 @@
             <tr>
               <td style="padding:34px 40px;background:linear-gradient(135deg,#0b0b0f 0%,#17171d 70%,#24242c 100%);">
                 <div style="margin-bottom:22px;">
+                  {% if logo_src %}
+                  <img src="{{ logo_src }}" alt="Gimnasio Los Cerros" style="display:block;width:88px;height:auto;" />
+                  {% else %}
                   <img src="cid:{{ logo_cid }}" alt="Gimnasio Los Cerros" style="display:block;width:88px;height:auto;" />
+                  {% endif %}
                 </div>
                 <div style="display:inline-block;padding:8px 14px;border:1px solid rgba(201,162,39,0.35);border-radius:999px;color:#e5c96b;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">
                   Landing institucional
