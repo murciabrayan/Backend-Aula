@@ -221,6 +221,8 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 LANDING_CONTACT_EMAIL = os.getenv('LANDING_CONTACT_EMAIL', DEFAULT_FROM_EMAIL)
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '').strip()
 RESEND_FROM_EMAIL = os.getenv('RESEND_FROM_EMAIL', 'onboarding@resend.dev').strip()
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '').strip()
+BREVO_FROM_EMAIL = os.getenv('BREVO_FROM_EMAIL', EMAIL_HOST_USER).strip()
 
 # ==============================
 # CABECERAS / COOKIES SEGURAS

@@ -13,6 +13,7 @@ from django.utils.html import strip_tags
 LOGO_CID = "gimnasio-los-cerros-logo"
 LOGO_PATH = Path(__file__).resolve().parents[2] / "frontend" / "src" / "assets" / "logo.png"
 RESEND_API_URL = "https://api.resend.com/emails"
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 def _load_logo_data_uri():
@@ -34,7 +35,43 @@ class RenderedEmail:
     from_email: str
 
     def send(self):
+        brevo_api_key = getattr(settings, "BREVO_API_KEY", "").strip()
         resend_api_key = getattr(settings, "RESEND_API_KEY", "").strip()
+
+        if brevo_api_key:
+            sender_value = getattr(settings, "BREVO_FROM_EMAIL", self.from_email).strip()
+            sender_email = sender_value
+            sender_name = None
+            if "<" in sender_value and ">" in sender_value:
+                sender_name = sender_value.split("<", 1)[0].strip().strip('"')
+                sender_email = sender_value.split("<", 1)[1].split(">", 1)[0].strip()
+
+            payload = {
+                "sender": {
+                    "email": sender_email,
+                },
+                "to": [{"email": email} for email in self.to],
+                "subject": self.subject,
+                "htmlContent": self.html_message,
+                "textContent": self.text_message,
+            }
+            if sender_name:
+                payload["sender"]["name"] = sender_name
+
+            response = requests.post(
+                BREVO_API_URL,
+                headers={
+                    "api-key": brevo_api_key,
+                    "Content-Type": "application/json",
+                    "accept": "application/json",
+                },
+                json=payload,
+                timeout=getattr(settings, "EMAIL_TIMEOUT", 10),
+            )
+            if response.status_code >= 400:
+                raise RuntimeError(f"Brevo {response.status_code}: {response.text}")
+            return 1
+
         if resend_api_key:
             payload = {
                 "from": getattr(settings, "RESEND_FROM_EMAIL", self.from_email),
