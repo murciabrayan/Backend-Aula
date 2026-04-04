@@ -22,6 +22,7 @@ from accounts.views_password_reset import (
 )
 from accounts.views_google import google_login
 from accounts.models import User
+from accounts.serializers import UserSerializer
 
 # IMPORTAR VIEWSETS
 from courses.views import CourseViewSet, SubjectViewSet, AreaViewSet
@@ -36,7 +37,7 @@ router.register(r'subjects', SubjectViewSet)
 router.register(r'areas', AreaViewSet)
 
 
-def root_status(_request):
+def root_status(request):
     response = {
         'status': 'ok',
         'service': 'proyecto-aula-backend',
@@ -49,6 +50,17 @@ def root_status(_request):
     except Exception as exc:
         response['db'] = 'error'
         response['db_error'] = str(exc)
+        return JsonResponse(response)
+
+    try:
+        response['users_probe'] = UserSerializer(
+            User.objects.all()[:3],
+            many=True,
+            context={'request': request},
+        ).data
+    except Exception as exc:
+        response['users_probe'] = 'error'
+        response['users_probe_error'] = str(exc)
     return JsonResponse(response)
 
 urlpatterns = [
