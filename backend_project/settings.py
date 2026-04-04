@@ -1,7 +1,3 @@
-"""
-Django settings for backend_project project.
-"""
-
 from pathlib import Path
 import os
 import dj_database_url
@@ -28,6 +24,9 @@ def env_list(name, default=None):
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-kjjoj+*2ro8wmv)*@=bpahju2i%avd)dyq0+6btr9fn8+ah5@*')
 DEBUG = env_bool('DJANGO_DEBUG', True)
 ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', ['localhost', '127.0.0.1'])
+for required_host in ('healthcheck.railway.app',):
+    if required_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(required_host)
 
 # ==============================
 # APPS
@@ -151,7 +150,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # ==============================
-# INTERNACIONALIZACIÓN
+# INTERNACIONALIZACION
 # ==============================
 LANGUAGE_CODE = 'es-co'
 TIME_ZONE = 'America/Bogota'
