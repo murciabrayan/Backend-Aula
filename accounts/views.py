@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import send_mail
+import logging
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -25,6 +26,7 @@ from .serializers import (
 
 User = get_user_model()
 token_generator = PasswordResetTokenGenerator()
+logger = logging.getLogger(__name__)
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -47,8 +49,25 @@ class UserViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as exc:
+            logger.exception("Error al listar usuarios")
+            return Response(
+                {"detail": f"No se pudieron cargar los usuarios: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
+        try:
+            response = super().create(request, *args, **kwargs)
+        except Exception as exc:
+            logger.exception("Error al crear usuario")
+            return Response(
+                {"detail": f"No se pudo crear el usuario: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         created_user = getattr(self, "instance", None)
         warning = getattr(created_user, "_welcome_email_error", None)
         if warning:
