@@ -8,3 +8,5 @@ python-dotenv
 djangorestframework
 djangorestframework-simplejwt
 Pillow
+google-auth
+reportlab

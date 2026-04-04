@@ -3,10 +3,7 @@ import json
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
-from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from rest_framework import status
@@ -14,6 +11,8 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
+
+from backend_project.email_utils import build_html_email
 
 from .password_rules import validate_password_strength
 
@@ -62,16 +61,13 @@ def forgot_password(request):
                 "reset_link": reset_link,
                 "support_email": settings.DEFAULT_FROM_EMAIL,
             }
-            html_message = render_to_string("accounts/emails/password_reset.html", context)
-            text_message = strip_tags(html_message)
-
-            email_message = EmailMultiAlternatives(
+            email_message = build_html_email(
                 subject=subject,
-                body=text_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[user.email],
+                template_name="accounts/emails/password_reset.html",
+                context=context,
+                from_email=settings.DEFAULT_FROM_EMAIL,
             )
-            email_message.attach_alternative(html_message, "text/html")
             email_message.send()
 
         return Response(RESET_REQUEST_RESPONSE, status=status.HTTP_200_OK)

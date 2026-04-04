@@ -2,9 +2,8 @@ import secrets
 import string
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
+
+from backend_project.email_utils import build_html_email
 
 
 SPECIAL_CHARS = "!@#$%&*_-"
@@ -36,14 +35,11 @@ def send_welcome_credentials_email(user, temporary_password: str):
         "temporary_password": temporary_password,
         "support_email": settings.DEFAULT_FROM_EMAIL,
     }
-    html_message = render_to_string("accounts/emails/welcome_credentials.html", context)
-    text_message = strip_tags(html_message)
-
-    email_message = EmailMultiAlternatives(
+    email_message = build_html_email(
         subject=subject,
-        body=text_message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
         to=[user.email],
+        template_name="accounts/emails/welcome_credentials.html",
+        context=context,
+        from_email=settings.DEFAULT_FROM_EMAIL,
     )
-    email_message.attach_alternative(html_message, "text/html")
     email_message.send()

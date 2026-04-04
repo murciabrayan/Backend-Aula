@@ -1,6 +1,4 @@
 from django.conf import settings
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
@@ -21,6 +19,7 @@ from .serializers import (
     LandingGalleryItemSerializer,
     LandingNewsSerializer,
 )
+from backend_project.email_utils import build_html_email
 
 
 class LandingContentView(APIView):
@@ -80,24 +79,17 @@ class LandingContactMessageView(APIView):
         )
 
         try:
-            html_message = render_to_string(
-                "landing_content/emails/contact_message.html",
-                context,
-            )
-        except Exception as exc:
-            print("No se pudo renderizar el HTML del contacto:", exc)
-            html_message = None
-
-        try:
             contact_email = getattr(settings, "LANDING_CONTACT_EMAIL", settings.DEFAULT_FROM_EMAIL)
-            send_mail(
+            email_message = build_html_email(
                 subject=f"Nuevo mensaje de contacto - {subject}",
-                message=text_message,
+                to=[contact_email],
+                template_name="landing_content/emails/contact_message.html",
+                context=context,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[contact_email],
-                fail_silently=False,
-                html_message=html_message,
             )
+            if text_message:
+                email_message.body = text_message
+            email_message.send()
             return Response(
                 {"message": "Tu mensaje fue enviado correctamente al equipo institucional."},
                 status=status.HTTP_200_OK,

@@ -1,5 +1,5 @@
 ﻿from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -38,6 +38,19 @@ FOLLOW_UP_DELAY_DAYS = 7
 
 FINAL_STATUSES = {"RESOLVED_POSITIVE", "RESOLVED_NEGATIVE"}
 TEACHER_PENDING_STATUSES = {"TEACHER_INITIAL_PENDING", "TEACHER_FINAL_PENDING"}
+
+
+def calculate_next_follow_up_due_at(base_datetime=None):
+    if base_datetime is None:
+        base_datetime = timezone.now()
+
+    local_base_date = timezone.localtime(base_datetime).date()
+    due_date = local_base_date + timedelta(days=FOLLOW_UP_DELAY_DAYS)
+
+    return timezone.make_aware(
+        datetime.combine(due_date, time.min),
+        timezone.get_current_timezone(),
+    )
 
 
 def avg_or_none(values):
@@ -475,6 +488,7 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        trigger_scheduled_follow_up_requests()
         queryset = AcademicAlert.objects.all().select_related(
             "student",
             "course",
@@ -623,7 +637,7 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
 
         if decision == "APPROVE":
             alert.status = "MONITORING"
-            alert.next_follow_up_due_at = timezone.now() + timedelta(days=FOLLOW_UP_DELAY_DAYS)
+            alert.next_follow_up_due_at = calculate_next_follow_up_due_at()
             event_type = "ADMIN_REVIEW_APPROVED"
             event_title = "Seguimiento inicial aprobado"
             teacher_message = (

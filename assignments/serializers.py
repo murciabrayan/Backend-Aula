@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from accounts.file_validators import validate_pdf_file
+from courses.models import Subject
 from .models import Assignment, Submission
 
 
@@ -49,3 +50,18 @@ class SubmissionSerializer(serializers.ModelSerializer):
             return validate_pdf_file(value)
         except ValueError as exc:
             raise serializers.ValidationError(str(exc))
+
+
+class DirectActivityGradeEntrySerializer(serializers.Serializer):
+    student_id = serializers.IntegerField()
+    calificacion = serializers.DecimalField(max_digits=3, decimal_places=1, min_value=0, max_value=5)
+    retroalimentacion = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class DirectActivityCreateSerializer(serializers.Serializer):
+    materia = serializers.PrimaryKeyRelatedField(queryset=Subject.objects.all())
+    titulo = serializers.CharField(max_length=200)
+    descripcion = serializers.CharField(required=False, allow_blank=True)
+    fecha_entrega = serializers.DateField()
+    periodo = serializers.ChoiceField(choices=Assignment.PERIOD_CHOICES)
+    grades = DirectActivityGradeEntrySerializer(many=True, required=False)
