@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
@@ -32,7 +33,18 @@ router.register(r'courses', CourseViewSet)
 router.register(r'subjects', SubjectViewSet)
 router.register(r'areas', AreaViewSet)
 
+
+def root_status(_request):
+    return JsonResponse(
+        {
+            "status": "ok",
+            "service": "proyecto-aula-backend",
+            "message": "Backend activo",
+        }
+    )
+
 urlpatterns = [
+    path('', root_status, name='root_status'),
     path('admin/', admin.site.urls),
 
     # Perfil
