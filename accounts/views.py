@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import send_mail
+from django.http import HttpResponse
 import logging
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_bytes
@@ -13,6 +14,11 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from .excel_utils import (
+    build_bulk_user_template_workbook,
+    parse_bulk_user_workbook,
+    validate_excel_file,
+)
 from .models import StudentProfile, TeacherProfile, User, UserDocument
 from .permissions import IsAdminRole
 from .password_rules import validate_password_strength
@@ -27,6 +33,52 @@ from .serializers import (
 User = get_user_model()
 token_generator = PasswordResetTokenGenerator()
 logger = logging.getLogger(__name__)
+
+
+def _normalize_bulk_user_row(*, row, role):
+    payload = {
+        "email": (row.get("email") or "").strip(),
+        "cedula": str(row.get("cedula") or "").strip(),
+        "first_name": (row.get("first_name") or "").strip(),
+        "last_name": (row.get("last_name") or "").strip(),
+        "direccion": (row.get("direccion") or "").strip(),
+        "rh": (row.get("rh") or "").strip().upper(),
+        "role": role,
+    }
+
+    if role == "STUDENT":
+        payload.update(
+            {
+                "acudiente_nombre": (row.get("acudiente_nombre") or "").strip(),
+                "acudiente_cedula": str(row.get("acudiente_cedula") or "").strip(),
+                "acudiente_telefono": str(row.get("acudiente_telefono") or "").strip(),
+                "acudiente_email": (row.get("acudiente_email") or "").strip(),
+            }
+        )
+    elif role == "TEACHER":
+        payload.update(
+            {
+                "especialidad": (row.get("especialidad") or "").strip(),
+                "titulo": (row.get("titulo") or "").strip(),
+            }
+        )
+
+    return payload
+
+
+def _serialize_bulk_row_result(*, sheet_name, row_number, payload, serializer):
+    full_name = f"{payload.get('first_name', '').strip()} {payload.get('last_name', '').strip()}".strip()
+    return {
+        "sheet": sheet_name,
+        "row": row_number,
+        "role": payload.get("role"),
+        "name": full_name or payload.get("email") or f"Fila {row_number}",
+        "email": payload.get("email") or "",
+        "cedula": payload.get("cedula") or "",
+        "status": "valid" if serializer.is_valid() else "error",
+        "data": payload,
+        "errors": serializer.errors if serializer.errors else {},
+    }
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -103,6 +155,174 @@ class UserViewSet(viewsets.ModelViewSet):
         document = get_object_or_404(UserDocument, pk=document_id, user=user)
         document.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["get"], url_path="bulk/template")
+    def bulk_template(self, request):
+        workbook_bytes = build_bulk_user_template_workbook()
+        response = HttpResponse(
+            workbook_bytes,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="plantilla-usuarios-masivos.xlsx"'
+        return response
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="bulk/preview",
+        parser_classes=[MultiPartParser, FormParser],
+    )
+    def bulk_preview(self, request):
+        uploaded_file = request.FILES.get("file")
+        if not uploaded_file:
+            return Response(
+                {"error": "Debes adjuntar el archivo Excel para revisar los usuarios."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validated_file = validate_excel_file(uploaded_file)
+            workbook_data = parse_bulk_user_workbook(validated_file)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("Error al previsualizar archivo de usuarios masivos")
+            return Response(
+                {"error": f"No se pudo leer el archivo Excel: {exc}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        rows = []
+        sheet_definitions = [
+            ("Estudiantes", "STUDENT"),
+            ("Docentes", "TEACHER"),
+        ]
+
+        for sheet_name, role in sheet_definitions:
+            for row_number, row in enumerate(workbook_data.get(sheet_name, []), start=2):
+                payload = _normalize_bulk_user_row(row=row, role=role)
+                serializer = self.get_serializer(data=payload, context={"request": request})
+                rows.append(
+                    _serialize_bulk_row_result(
+                        sheet_name=sheet_name,
+                        row_number=row_number,
+                        payload=payload,
+                        serializer=serializer,
+                    )
+                )
+
+        valid_count = sum(1 for row in rows if row["status"] == "valid")
+        error_count = sum(1 for row in rows if row["status"] == "error")
+
+        return Response(
+            {
+                "message": "Previsualizacion generada.",
+                "rows": rows,
+                "total_count": len(rows),
+                "valid_count": valid_count,
+                "error_count": error_count,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="bulk/import",
+        parser_classes=[MultiPartParser, FormParser],
+    )
+    def bulk_import(self, request):
+        uploaded_file = request.FILES.get("file")
+        if not uploaded_file:
+            return Response(
+                {"error": "Debes adjuntar el archivo Excel para importar usuarios."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validated_file = validate_excel_file(uploaded_file)
+            workbook_data = parse_bulk_user_workbook(validated_file)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("Error al leer archivo de usuarios masivos")
+            return Response(
+                {"error": f"No se pudo leer el archivo Excel: {exc}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created = []
+        errors = []
+        warnings = []
+        sheet_definitions = [
+            ("Estudiantes", "STUDENT"),
+            ("Docentes", "TEACHER"),
+        ]
+
+        for sheet_name, role in sheet_definitions:
+            for row_number, row in enumerate(workbook_data.get(sheet_name, []), start=2):
+                payload = _normalize_bulk_user_row(row=row, role=role)
+                serializer = self.get_serializer(data=payload, context={"request": request})
+
+                if not serializer.is_valid():
+                    errors.append(
+                        {
+                            "sheet": sheet_name,
+                            "row": row_number,
+                            "name": f"{payload.get('first_name', '').strip()} {payload.get('last_name', '').strip()}".strip()
+                            or payload.get("email")
+                            or f"Fila {row_number}",
+                            "email": payload.get("email") or "",
+                            "errors": serializer.errors,
+                        }
+                    )
+                    continue
+
+                try:
+                    user = serializer.save()
+                except Exception as exc:
+                    logger.exception("Error al crear usuario masivo")
+                    errors.append(
+                        {
+                            "sheet": sheet_name,
+                            "row": row_number,
+                            "errors": {"detail": [str(exc)]},
+                        }
+                    )
+                    continue
+
+                created.append(
+                    {
+                        "id": user.id,
+                        "email": user.email,
+                        "role": user.role,
+                        "name": f"{user.first_name} {user.last_name}".strip(),
+                    }
+                )
+
+                warning = getattr(user, "_welcome_email_error", None)
+                if warning:
+                    warnings.append(
+                        {
+                            "sheet": sheet_name,
+                            "row": row_number,
+                            "email": user.email,
+                            "warning": warning,
+                        }
+                    )
+
+        return Response(
+            {
+                "message": "Importacion masiva procesada.",
+                "created_count": len(created),
+                "error_count": len(errors),
+                "warning_count": len(warnings),
+                "created": created,
+                "errors": errors,
+                "warnings": warnings,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class StudentProfileViewSet(viewsets.ModelViewSet):
@@ -225,8 +445,13 @@ def complete_initial_password(request):
                 "cedula": user.cedula,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
+                "direccion": user.direccion,
+                "rh": user.rh,
                 "role": user.role,
                 "must_change_password": user.must_change_password,
+                "has_accepted_data_policy": user.has_accepted_data_policy,
+                "data_policy_accepted_at": user.data_policy_accepted_at,
+                "has_saved_signature": user.has_saved_signature,
                 "photo_url": user.get_photo_url(request),
                 "avatar_url": user.get_avatar_url(request),
                 "avatar_style": user.avatar_style,

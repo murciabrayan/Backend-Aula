@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Q
 from .models import Course, Subject, Area
 from .serializers import CourseSerializer, SubjectSerializer, AreaSerializer
 from accounts.models import User
@@ -14,13 +15,24 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Course.objects.all().prefetch_related("estudiantes", "materias", "areas")
+        queryset = Course.objects.all().select_related(
+            "docente",
+            "director_curso",
+        ).prefetch_related(
+            "estudiantes",
+            "materias",
+            "materias__docente",
+            "areas",
+        )
 
         if user.role == "ADMIN":
             return queryset
 
         if user.role == "TEACHER":
-            return queryset.filter(docente=user)
+            return queryset.filter(
+                Q(director_curso=user) |
+                Q(materias__docente=user)
+            ).distinct()
 
         if user.role == "STUDENT":
             return queryset.filter(estudiantes=user)
@@ -75,8 +87,9 @@ class CourseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='remove-teacher')
     def remove_teacher(self, request, pk=None):
         course = self.get_object()
+        course.director_curso = None
         course.docente = None
-        course.save()
+        course.save(update_fields=["director_curso", "docente"])
 
         return Response(
             {'detail': 'teacher removed'},
@@ -85,11 +98,13 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='teacher/course')
     def teacher_course(self, request):
-        course = Course.objects.filter(docente=request.user).first()
+        course = Course.objects.filter(
+            director_curso=request.user
+        ).first()
 
         if not course:
             return Response(
-                {"detail": "El docente no tiene un curso asignado."},
+                {"detail": "El docente no tiene un curso dirigido asignado."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -114,7 +129,10 @@ class AreaViewSet(viewsets.ModelViewSet):
             return queryset
 
         if user.role == "TEACHER":
-            return queryset.filter(curso__docente=user)
+            return queryset.filter(
+                Q(curso__director_curso=user) |
+                Q(curso__materias__docente=user)
+            ).distinct()
 
         if user.role == "STUDENT":
             return queryset.filter(curso__estudiantes=user)
@@ -143,7 +161,10 @@ class SubjectViewSet(viewsets.ModelViewSet):
             return queryset
 
         if user.role == 'TEACHER':
-            return queryset.filter(curso__docente=user)
+            return queryset.filter(
+                Q(docente=user) |
+                Q(curso__director_curso=user)
+            ).distinct()
 
         if user.role == 'STUDENT':
             return queryset.filter(curso__estudiantes=user)

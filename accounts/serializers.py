@@ -10,6 +10,7 @@ from .onboarding import generate_temporary_password, send_welcome_credentials_em
 from .password_rules import validate_password_strength
 
 logger = logging.getLogger(__name__)
+VALID_RH_VALUES = {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"}
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -32,8 +33,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "cedula": user.cedula,
             "first_name": user.first_name,
             "last_name": user.last_name,
+            "direccion": user.direccion,
+            "rh": user.rh,
             "role": user.role,
             "must_change_password": user.must_change_password,
+            "has_accepted_data_policy": user.has_accepted_data_policy,
+            "data_policy_accepted_at": user.data_policy_accepted_at,
+            "has_saved_signature": user.has_saved_signature,
             "photo_url": user.get_photo_url(request),
             "avatar_url": user.get_avatar_url(request),
             "avatar_style": user.avatar_style,
@@ -49,6 +55,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             'id',
             'grado',
             'acudiente_nombre',
+            'acudiente_cedula',
             'acudiente_telefono',
             'acudiente_email',
         ]
@@ -92,6 +99,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     grado = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_nombre = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    acudiente_cedula = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_telefono = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
     especialidad = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -108,6 +116,8 @@ class UserSerializer(serializers.ModelSerializer):
             'cedula',
             'first_name',
             'last_name',
+            'direccion',
+            'rh',
             'role',
             'profile_photo',
             'photo_url',
@@ -123,6 +133,7 @@ class UserSerializer(serializers.ModelSerializer):
             'documents',
             'grado',
             'acudiente_nombre',
+            'acudiente_cedula',
             'acudiente_telefono',
             'acudiente_email',
             'especialidad',
@@ -172,6 +183,22 @@ class UserSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_acudiente_cedula(self, value):
+        if value and not str(value).isdigit():
+            raise serializers.ValidationError("La cedula del acudiente solo puede contener numeros.")
+        return value
+
+    def validate_direccion(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("La direccion es obligatoria.")
+        return value.strip()
+
+    def validate_rh(self, value):
+        normalized_value = (value or "").strip().upper()
+        if normalized_value not in VALID_RH_VALUES:
+            raise serializers.ValidationError("Selecciona un RH valido.")
+        return normalized_value
+
     def validate(self, attrs):
         email = attrs.get("email")
         if email and "@" not in email:
@@ -184,6 +211,7 @@ class UserSerializer(serializers.ModelSerializer):
 
         grado = validated_data.pop('grado', None)
         acudiente_nombre = validated_data.pop('acudiente_nombre', None)
+        acudiente_cedula = validated_data.pop('acudiente_cedula', None)
         acudiente_telefono = validated_data.pop('acudiente_telefono', None)
         acudiente_email = validated_data.pop('acudiente_email', None)
         especialidad = validated_data.pop('especialidad', None)
@@ -203,6 +231,7 @@ class UserSerializer(serializers.ModelSerializer):
                     user=user,
                     grado=grado or "",
                     acudiente_nombre=acudiente_nombre or "",
+                    acudiente_cedula=acudiente_cedula or "",
                     acudiente_telefono=acudiente_telefono or "",
                     acudiente_email=acudiente_email or "",
                 )
@@ -227,6 +256,7 @@ class UserSerializer(serializers.ModelSerializer):
 
         grado = validated_data.pop('grado', None)
         acudiente_nombre = validated_data.pop('acudiente_nombre', None)
+        acudiente_cedula = validated_data.pop('acudiente_cedula', None)
         acudiente_telefono = validated_data.pop('acudiente_telefono', None)
         acudiente_email = validated_data.pop('acudiente_email', None)
         especialidad = validated_data.pop('especialidad', None)
@@ -245,6 +275,7 @@ class UserSerializer(serializers.ModelSerializer):
                 defaults={
                     'grado': grado or "",
                     'acudiente_nombre': acudiente_nombre or "",
+                    'acudiente_cedula': acudiente_cedula or "",
                     'acudiente_telefono': acudiente_telefono or "",
                     'acudiente_email': acudiente_email or "",
                 }

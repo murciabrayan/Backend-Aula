@@ -7,10 +7,32 @@ from accounts.models import User
 
 class SubjectSerializer(serializers.ModelSerializer):
     area_nombre = serializers.CharField(source="area.nombre", read_only=True)
+    course_name = serializers.CharField(source="curso.nombre", read_only=True)
+    teacher = serializers.PrimaryKeyRelatedField(
+        source="docente",
+        queryset=User.objects.filter(role="TEACHER"),
+        allow_null=True,
+        required=False
+    )
+    teacher_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Subject
-        fields = "__all__"
+        fields = [
+            "id",
+            "nombre",
+            "curso",
+            "area",
+            "area_nombre",
+            "course_name",
+            "teacher",
+            "teacher_name",
+        ]
+
+    def get_teacher_name(self, obj):
+        if obj.docente_id:
+            return f"{obj.docente.first_name} {obj.docente.last_name}".strip()
+        return ""
 
 
 # ===================== AREA =====================
@@ -33,11 +55,13 @@ class CourseSerializer(serializers.ModelSerializer):
     )
 
     teacher = serializers.PrimaryKeyRelatedField(
-        source="docente",
+        source="director_curso",
         queryset=User.objects.filter(role="TEACHER"),
         allow_null=True,
         required=False
     )
+    teacher_name = serializers.SerializerMethodField()
+    director_teacher = serializers.SerializerMethodField()
 
     students = serializers.PrimaryKeyRelatedField(
         source="estudiantes",
@@ -66,6 +90,8 @@ class CourseSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "teacher",
+            "teacher_name",
+            "director_teacher",
             "students",
             "student_details",
             "subjects",
@@ -90,17 +116,32 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         estudiantes_data = validated_data.pop("estudiantes", None)
-        docente_data = validated_data.pop("docente", None)
+        director_data = validated_data.pop("director_curso", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        if docente_data is not None:
-            instance.docente = docente_data
+        if director_data is not None:
+            instance.director_curso = director_data
+            instance.docente = director_data
 
         instance.save()
 
         if estudiantes_data is not None:
+            instance.estudiantes.set(estudiantes_data)
+
+        return instance
+
+    def create(self, validated_data):
+        estudiantes_data = validated_data.pop("estudiantes", [])
+        director_data = validated_data.get("director_curso")
+
+        instance = Course.objects.create(
+            **validated_data,
+            docente=director_data,
+        )
+
+        if estudiantes_data:
             instance.estudiantes.set(estudiantes_data)
 
         return instance
@@ -115,3 +156,13 @@ class CourseSerializer(serializers.ModelSerializer):
             }
             for student in obj.estudiantes.filter(role="STUDENT").order_by("first_name", "last_name")
         ]
+
+    def get_teacher_name(self, obj):
+        teacher = obj.director_curso or obj.docente
+        if not teacher:
+            return ""
+        return f"{teacher.first_name} {teacher.last_name}".strip()
+
+    def get_director_teacher(self, obj):
+        teacher = obj.director_curso or obj.docente
+        return teacher.id if teacher else None

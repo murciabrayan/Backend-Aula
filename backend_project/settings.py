@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'academic_alerts',
     'attendance',
     'landing_content',
+    'permission_letters',
 ]
 
 # ==============================

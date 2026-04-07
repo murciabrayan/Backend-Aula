@@ -1,5 +1,6 @@
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -12,6 +13,10 @@ from .serializers import (
     DirectActivityCreateSerializer,
     SubmissionSerializer,
 )
+
+
+def get_subject_teacher_id(subject):
+    return getattr(subject, "docente_id", None) or getattr(subject.curso, "director_curso_id", None)
 
 
 class AssignmentViewSet(viewsets.ModelViewSet):
@@ -47,7 +52,10 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             )
 
         if user.role == "TEACHER":
-            return queryset.filter(materia__curso__docente=user)
+            return queryset.filter(
+                Q(materia__docente=user) |
+                Q(materia__curso__director_curso=user)
+            ).distinct()
 
         if user.role == "STUDENT":
             return queryset.filter(materia__curso__estudiantes=user)
@@ -132,9 +140,9 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         if user.role != "TEACHER":
             raise PermissionDenied("Solo los docentes pueden crear tareas.")
 
-        if materia.curso.docente != user:
+        if get_subject_teacher_id(materia) != user.id:
             raise PermissionDenied(
-                "Solo el docente asignado al curso puede crear tareas en esta materia."
+                "Solo el docente asignado a esta materia puede crear tareas."
             )
 
         assignment = serializer.save()
@@ -147,9 +155,9 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         if user.role != "TEACHER":
             raise PermissionDenied("Solo los docentes pueden editar tareas.")
 
-        if materia.curso.docente != user:
+        if get_subject_teacher_id(materia) != user.id:
             raise PermissionDenied(
-                "Solo el docente asignado al curso puede editar tareas en esta materia."
+                "Solo el docente asignado a esta materia puede editar tareas."
             )
 
         serializer.save()
@@ -160,9 +168,9 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         if user.role != "TEACHER":
             raise PermissionDenied("Solo los docentes pueden eliminar tareas.")
 
-        if instance.materia.curso.docente != user:
+        if get_subject_teacher_id(instance.materia) != user.id:
             raise PermissionDenied(
-                "Solo el docente asignado al curso puede eliminar tareas en esta materia."
+                "Solo el docente asignado a esta materia puede eliminar tareas."
             )
 
         instance.delete()
@@ -181,10 +189,10 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         materia = serializer.validated_data["materia"]
-        if materia.curso.docente_id != user.id:
+        if get_subject_teacher_id(materia) != user.id:
             return Response(
                 {
-                    "detail": "Solo el docente asignado al curso puede registrar actividades en esta materia."
+                    "detail": "Solo el docente asignado a esta materia puede registrar actividades."
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -228,9 +236,9 @@ class AssignmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if assignment.materia.curso.docente_id != user.id:
+        if get_subject_teacher_id(assignment.materia) != user.id:
             return Response(
-                {"detail": "Solo el docente asignado al curso puede editar esta actividad."},
+                {"detail": "Solo el docente asignado a esta materia puede editar esta actividad."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -285,7 +293,10 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             return queryset.filter(estudiante=user)
 
         if user.role == "TEACHER":
-            return queryset.filter(tarea__materia__curso__docente=user)
+            return queryset.filter(
+                Q(tarea__materia__docente=user) |
+                Q(tarea__materia__curso__director_curso=user)
+            ).distinct()
 
         return queryset.none()
 
@@ -319,7 +330,7 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         entrega = self.get_object()
         user = request.user
 
-        if entrega.tarea.materia.curso.docente != user:
+        if get_subject_teacher_id(entrega.tarea.materia) != user.id:
             return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
         calificacion = request.data.get("calificacion")

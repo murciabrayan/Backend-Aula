@@ -40,6 +40,10 @@ FINAL_STATUSES = {"RESOLVED_POSITIVE", "RESOLVED_NEGATIVE"}
 TEACHER_PENDING_STATUSES = {"TEACHER_INITIAL_PENDING", "TEACHER_FINAL_PENDING"}
 
 
+def get_course_followup_teacher(course):
+    return getattr(course, "director_curso", None) or getattr(course, "docente", None)
+
+
 def calculate_next_follow_up_due_at(base_datetime=None):
     if base_datetime is None:
         base_datetime = timezone.now()
@@ -269,7 +273,7 @@ def create_or_update_alert(
     if should_notify:
         create_notifications(
             student=student,
-            teacher=course.docente if course.docente_id else None,
+            teacher=get_course_followup_teacher(course),
             admins=get_admin_users(),
             title=title,
             student_message=message_student,
@@ -446,7 +450,7 @@ def trigger_scheduled_follow_up_requests():
         status="MONITORING",
         next_follow_up_due_at__isnull=False,
         next_follow_up_due_at__lte=now,
-    ).select_related("student", "course", "course__docente")
+    ).select_related("student", "course", "course__docente", "course__director_curso")
 
     triggered = 0
 
@@ -465,7 +469,7 @@ def trigger_scheduled_follow_up_requests():
         )
 
         create_notifications(
-            teacher=alert.course.docente if alert.course.docente_id else None,
+            teacher=get_course_followup_teacher(alert.course),
             title=f"Seguimiento pendiente - {alert.title}",
             teacher_message=(
                 f"Debes confirmar si hubo mejora en la alerta de {alert.student.first_name} "
@@ -515,7 +519,7 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
             return queryset
 
         if user.role == "TEACHER":
-            return queryset.filter(course__docente=user)
+            return queryset.filter(course__director_curso=user)
 
         if user.role == "STUDENT":
             return queryset.filter(student=user)
@@ -539,7 +543,7 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
 
         course = get_object_or_404(Course, pk=course_id)
 
-        if user.role == "TEACHER" and course.docente_id != user.id:
+        if user.role == "TEACHER" and course.director_curso_id != user.id:
             return Response(
                 {"detail": "No autorizado para generar alertas de este curso."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -564,7 +568,7 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
         alert = self.get_object()
-        if alert.course.docente_id != user.id:
+        if alert.course.director_curso_id != user.id:
             return Response(
                 {"detail": "No autorizado para gestionar esta alerta."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -667,7 +671,7 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
         create_notifications(
-            teacher=alert.course.docente if alert.course.docente_id else None,
+            teacher=get_course_followup_teacher(alert.course),
             title=f"Revisión administrativa - {alert.title}",
             teacher_message=teacher_message,
         )
@@ -721,7 +725,7 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
 
         create_notifications(
             student=alert.student,
-            teacher=alert.course.docente if alert.course.docente_id else None,
+            teacher=get_course_followup_teacher(alert.course),
             title=f"Cierre de alerta - {alert.title}",
             student_message="Tu proceso de seguimiento académico recibió una decisión final. Revisa el módulo de alertas.",
             teacher_message=(

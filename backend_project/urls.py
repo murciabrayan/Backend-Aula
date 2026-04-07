@@ -16,6 +16,11 @@ from accounts.views import (
     StudentProfileViewSet,
     TeacherProfileViewSet,
 )
+from accounts.views_data_policy import (
+    data_policy_status,
+    accept_data_policy,
+    update_data_policy_signature,
+)
 from accounts.views_password_reset import (
     forgot_password,
     reset_password,
@@ -71,6 +76,9 @@ urlpatterns = [
     path('api/profile/', user_profile, name='user_profile'),
     path('api/change-password/', change_password, name='change_password'),
     path('api/complete-initial-password/', complete_initial_password, name='complete_initial_password'),
+    path('api/data-policy/', data_policy_status, name='data_policy_status'),
+    path('api/data-policy/accept/', accept_data_policy, name='accept_data_policy'),
+    path('api/data-policy/update-signature/', update_data_policy_signature, name='update_data_policy_signature'),
 
     # JWT
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -106,6 +114,9 @@ urlpatterns = [
 
     # Landing content
     path('api/landing/', include('landing_content.urls')),
+
+    # Permission letters
+    path('api/', include('permission_letters.urls')),
 ]
 
 if settings.DEBUG:

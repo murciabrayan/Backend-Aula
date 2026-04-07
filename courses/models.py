@@ -6,6 +6,15 @@ class Course(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
     descripcion = models.TextField(blank=True, null=True)
 
+    director_curso = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={'role': 'TEACHER'},
+        related_name='cursos_dirigidos'
+    )
+
     docente = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -56,6 +65,14 @@ class Subject(models.Model):
         null=True,
         blank=True,
         related_name='materias'
+    )
+    docente = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={'role': 'TEACHER'},
+        related_name='materias_asignadas'
     )
 
     class Meta:

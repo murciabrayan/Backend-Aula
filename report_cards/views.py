@@ -86,7 +86,7 @@ class SubjectIndicatorAssignmentViewSet(viewsets.ModelViewSet):
             return queryset.order_by("materia__nombre", "periodo", "id")
 
         if user.role == "TEACHER":
-            return queryset.filter(materia__curso__docente=user).order_by(
+            return queryset.filter(materia__docente=user).order_by(
                 "materia__nombre", "periodo", "id"
             )
 
@@ -359,7 +359,7 @@ def build_course_positions(course, subjects, assignments, indicators_map):
 def build_student_report_data(student_id):
     student = get_object_or_404(User, pk=student_id, role="STUDENT")
 
-    course = student.cursos.select_related("docente").first()
+    course = student.cursos.select_related("docente", "director_curso").first()
     if not course:
         return None, {"detail": "El estudiante no tiene curso asignado."}
 
@@ -405,8 +405,9 @@ def build_student_report_data(student_id):
     positions = build_course_positions(course, subjects, assignments, indicators_map)
 
     director_curso = ""
-    if course.docente:
-        director_curso = f"{course.docente.first_name} {course.docente.last_name}".strip()
+    teacher = course.director_curso
+    if teacher:
+        director_curso = f"{teacher.first_name} {teacher.last_name}".strip()
 
     data = {
         "estudiante": {
@@ -867,8 +868,8 @@ class AdminCoursesForReportsView(APIView):
                 "id": c.id,
                 "nombre": c.nombre,
                 "docente": (
-                    f"{c.docente.first_name} {c.docente.last_name}".strip()
-                    if c.docente else "Sin docente"
+                    f"{c.director_curso.first_name} {c.director_curso.last_name}".strip()
+                    if c.director_curso else "Sin director"
                 ),
                 "total_estudiantes": c.estudiantes.count(),
             }

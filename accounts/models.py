@@ -33,14 +33,22 @@ class User(AbstractBaseUser, PermissionsMixin):
     cedula = models.CharField(max_length=20, unique=True)  # identificador único
     first_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100, blank=True)
+    direccion = models.CharField(max_length=220, blank=True, default="")
+    rh = models.CharField(max_length=5, blank=True, default="")
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     profile_photo = models.ImageField(upload_to='profiles/', blank=True, null=True)
     avatar_style = models.CharField(max_length=60, blank=True, default="adventurer-neutral")
     avatar_seed = models.CharField(max_length=180, blank=True, default="")
+    signature_image = models.ImageField(upload_to='signatures/', blank=True, null=True)
+    signature_updated_at = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     google_account = models.BooleanField(default=False)
     must_change_password = models.BooleanField(default=False)
+    data_policy_accepted_at = models.DateTimeField(blank=True, null=True)
+    data_policy_acceptor_name = models.CharField(max_length=180, blank=True, default="")
+    data_policy_acceptor_document = models.CharField(max_length=20, blank=True, default="")
+    data_policy_version = models.CharField(max_length=20, blank=True, default="")
 
     objects = UserManager()
 
@@ -76,6 +84,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_avatar_url(self, request=None):
         return self.get_photo_url(request) or self.get_generated_avatar_url()
 
+    @property
+    def has_accepted_data_policy(self):
+        return bool(self.data_policy_accepted_at)
+
+    @property
+    def has_saved_signature(self):
+        return bool(self.signature_image or self.data_policy_accepted_at)
+
 
 # -------- PROFILES --------
 class StudentProfile(models.Model):
@@ -86,6 +102,7 @@ class StudentProfile(models.Model):
     )
     grado = models.CharField(max_length=50)  # Ej: "Quinto", "sexto"
     acudiente_nombre = models.CharField(max_length=150)
+    acudiente_cedula = models.CharField(max_length=20, blank=True, default="")
     acudiente_telefono = models.CharField(max_length=20)
     acudiente_email = models.EmailField(blank=True, null=True)
 

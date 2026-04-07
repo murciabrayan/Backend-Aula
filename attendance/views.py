@@ -144,7 +144,9 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return queryset
 
         if user.role == "TEACHER":
-            return queryset.filter(course__docente=user)
+            return queryset.filter(
+                course__director_curso=user
+            )
 
         if user.role == "STUDENT":
             return queryset.filter(student=user)
@@ -193,10 +195,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        course = Course.objects.filter(docente=request.user).first()
+        course = Course.objects.filter(
+            director_curso=request.user
+        ).first()
         if not course:
             return Response(
-                {"detail": "El docente no tiene un curso asignado."},
+                {"detail": "El docente no tiene un curso como director asignado."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -307,10 +311,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         serializer = BulkAttendanceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        course = Course.objects.filter(docente=request.user).first()
+        course = Course.objects.filter(
+            director_curso=request.user
+        ).first()
         if not course:
             return Response(
-                {"detail": "El docente no tiene un curso asignado."},
+                {"detail": "El docente no tiene un curso como director asignado."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -373,7 +379,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
         course = get_object_or_404(Course, pk=course_id)
 
-        if user.role == "TEACHER" and course.docente_id != user.id:
+        if user.role == "TEACHER" and course.director_curso_id != user.id:
             return Response({"detail": "No autorizado para este curso."}, status=status.HTTP_403_FORBIDDEN)
 
         if user.role not in ["ADMIN", "TEACHER"]:

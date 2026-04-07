@@ -8,6 +8,7 @@ from django.contrib.auth.hashers import check_password
 from .file_validators import validate_image_file
 from .models import AdminProfile, StudentProfile, TeacherProfile
 from .password_rules import validate_password_strength
+from .serializers import UserDocumentSerializer
 
 User = get_user_model()
 
@@ -24,12 +25,22 @@ def user_profile(request):
             "email": user.email,
             "first_name": user.first_name,
             "last_name": user.last_name,
+            "direccion": user.direccion,
+            "rh": user.rh,
             "role": user.role,
             "must_change_password": user.must_change_password,
+            "has_accepted_data_policy": user.has_accepted_data_policy,
+            "data_policy_accepted_at": user.data_policy_accepted_at,
+            "has_saved_signature": user.has_saved_signature,
             "photo_url": user.get_photo_url(request),
             "avatar_url": user.get_avatar_url(request),
             "avatar_style": user.avatar_style,
             "avatar_seed": user.get_avatar_seed(),
+            "documents": UserDocumentSerializer(
+                user.documents.all(),
+                many=True,
+                context={"request": request},
+            ).data,
         }
 
         if user.role == "STUDENT":
@@ -39,6 +50,7 @@ def user_profile(request):
                     {
                         "grado": student.grado,
                         "acudiente_nombre": student.acudiente_nombre,
+                        "acudiente_cedula": student.acudiente_cedula,
                         "acudiente_telefono": student.acudiente_telefono,
                         "acudiente_email": student.acudiente_email,
                     }
@@ -62,6 +74,8 @@ def user_profile(request):
     user.first_name = request.data.get("first_name", user.first_name)
     user.last_name = request.data.get("last_name", user.last_name)
     user.email = request.data.get("email", user.email)
+    user.direccion = request.data.get("direccion", user.direccion)
+    user.rh = request.data.get("rh", user.rh)
     user.avatar_style = request.data.get(
         "avatar_style", user.avatar_style or "adventurer-neutral"
     )
@@ -88,6 +102,7 @@ def user_profile(request):
             defaults={
                 "grado": request.data.get("grado", ""),
                 "acudiente_nombre": request.data.get("acudiente_nombre", ""),
+                "acudiente_cedula": request.data.get("acudiente_cedula", ""),
                 "acudiente_telefono": request.data.get("acudiente_telefono", ""),
                 "acudiente_email": request.data.get("acudiente_email", ""),
             },
@@ -114,8 +129,13 @@ def user_profile(request):
                 "email": user.email,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
+                "direccion": user.direccion,
+                "rh": user.rh,
                 "role": user.role,
                 "must_change_password": user.must_change_password,
+                "has_accepted_data_policy": user.has_accepted_data_policy,
+                "data_policy_accepted_at": user.data_policy_accepted_at,
+                "has_saved_signature": user.has_saved_signature,
                 "photo_url": user.get_photo_url(request),
                 "avatar_url": user.get_avatar_url(request),
                 "avatar_style": user.avatar_style,
