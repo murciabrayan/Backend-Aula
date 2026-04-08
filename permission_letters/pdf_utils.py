@@ -81,11 +81,11 @@ def build_permission_response_pdf(*, recipient, status, signature_bytes=None):
         ),
         (
             f"La respuesta fue registrada por el acudiente {guardian_name} identificado con "
-            f"documento {guardian_document}, quien actua como firmante autorizado en "
-            "representacion del menor dentro de la plataforma institucional."
+            f"documento {guardian_document}, quien actúa como firmante autorizado en "
+            "representación del menor dentro de la plataforma institucional."
         ),
         (
-            "Esta constancia fue generada automaticamente por la plataforma institucional y "
+            "Esta constancia fue generada automáticamente por la plataforma institucional y "
             "queda almacenada dentro del perfil del estudiante para fines de seguimiento administrativo."
         ),
     ]

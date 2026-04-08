@@ -14,7 +14,7 @@ from .models import StudentProfile, UserDocument
 
 
 DATA_POLICY_CATEGORY = "Tratamiento de datos personales"
-DATA_POLICY_TITLE = "Autorizacion de tratamiento de datos personales"
+DATA_POLICY_TITLE = "Autorización de tratamiento de datos personales"
 DATA_POLICY_VERSION = "2026.1"
 DATA_POLICY_LETTERHEAD_CANDIDATES = [
     Path(settings.BASE_DIR) / "assets" / "boletin" / "membrete_tratamiento_datos.png",
@@ -28,13 +28,13 @@ POLICY_PARAGRAPHS = [
         "actualizar y custodiar los datos personales suministrados dentro de la plataforma institucional."
     ),
     (
-        "Esta autorizacion comprende el tratamiento de informacion academica, administrativa, "
+        "Esta autorización comprende el tratamiento de información académica, administrativa, "
         "de contacto y soporte documental necesaria para la prestacion del servicio educativo, "
-        "la comunicacion con la comunidad y el cumplimiento de obligaciones legales."
+        "la comunicación con la comunidad y el cumplimiento de obligaciones legales."
     ),
     (
-        "Declaro que conozco que podre ejercer los derechos de consulta, actualizacion, "
-        "rectificacion y supresion de datos personales a traves de los canales institucionales."
+        "Declaro que conozco que podrá ejercer los derechos de consulta, actualización, "
+        "rectificación y supresión de datos personales a través de los canales institucionales."
     ),
 ]
 
@@ -77,9 +77,9 @@ def validate_signer_data(user):
     if not signer["name"] or not signer["document"]:
         if user.role == "STUDENT":
             raise ValueError(
-                "El estudiante no tiene completos los datos del acudiente para firmar la autorizacion."
+                "El estudiante no tiene completos los datos del acudiente para firmar la autorización."
             )
-        raise ValueError("El usuario no tiene completos sus datos para firmar la autorizacion.")
+        raise ValueError("El usuario no tiene completos sus datos para firmar la autorización.")
     return signer
 
 
@@ -121,17 +121,17 @@ def build_data_policy_pdf(*, user, signer_name, signer_document, signature_bytes
 
         pdf.setFillColor(colors.black)
         pdf.setFont("Helvetica-Bold", 13)
-        pdf.drawCentredString(header_center_x, title_y, "Autorizacion para el tratamiento de datos personales")
+        pdf.drawCentredString(header_center_x, title_y, "Autorización para el tratamiento de datos personales")
         pdf.setFont("Helvetica", 9.5)
-        pdf.drawCentredString(header_center_x, subtitle_y, "Declaracion institucional firmada electronicamente")
-        pdf.drawCentredString(header_center_x, version_y, f"Version: {DATA_POLICY_VERSION}")
+        pdf.drawCentredString(header_center_x, subtitle_y, "Declaración institucional firmada electrónicamente")
+        pdf.drawCentredString(header_center_x, version_y, f"Versión: {DATA_POLICY_VERSION}")
         current_y = version_y - 1.2 * cm
     else:
         pdf.setFont("Helvetica-Bold", 14)
         pdf.drawString(left + 2.3 * cm, current_y - 0.1 * cm, "GIMNASIO LOS CERROS")
         pdf.setFont("Helvetica", 9.5)
-        pdf.drawString(left + 2.3 * cm, current_y - 0.7 * cm, "Autorizacion para el tratamiento de datos personales")
-        pdf.drawString(left + 2.3 * cm, current_y - 1.2 * cm, f"Version: {DATA_POLICY_VERSION}")
+        pdf.drawString(left + 2.3 * cm, current_y - 0.7 * cm, "Autorización para el tratamiento de datos personales")
+        pdf.drawString(left + 2.3 * cm, current_y - 1.2 * cm, f"Versión: {DATA_POLICY_VERSION}")
         current_y -= 3.1 * cm
 
     pdf.setStrokeColor(colors.black)
@@ -139,7 +139,7 @@ def build_data_policy_pdf(*, user, signer_name, signer_document, signature_bytes
     current_y -= 0.8 * cm
 
     pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(left, current_y, "Declaracion de autorizacion")
+    pdf.drawString(left, current_y, "Declaración de autorización")
     current_y -= 0.8 * cm
 
     pdf.setFont("Helvetica", 10)
@@ -163,7 +163,7 @@ def build_data_policy_pdf(*, user, signer_name, signer_document, signature_bytes
         ("Documento", signer_document),
         ("Calidad", "Acudiente" if user.role == "STUDENT" else "Titular"),
         ("Usuario asociado", f"{user.first_name} {user.last_name}".strip() or user.email),
-        ("Fecha de aceptacion", timezone.localtime().strftime("%Y-%m-%d %H:%M")),
+        ("Fecha de aceptación", timezone.localtime().strftime("%Y-%m-%d %H:%M")),
     ]
 
     pdf.setFont("Helvetica", 10)
@@ -192,7 +192,7 @@ def build_data_policy_pdf(*, user, signer_name, signer_document, signature_bytes
     )
 
     pdf.setFont("Helvetica", 8.5)
-    pdf.drawString(left, current_y - 3.8 * cm, "La firma corresponde a la aceptacion electronica del tratamiento de datos.")
+    pdf.drawString(left, current_y - 3.8 * cm, "La firma corresponde a la aceptación electrónica del tratamiento de datos.")
 
     pdf.showPage()
     pdf.save()

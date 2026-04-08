@@ -353,12 +353,12 @@ def forgot_password(request):
         token = token_generator.make_token(user)
         reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
 
-        subject = "Restablecimiento de contrasena"
+        subject = "Restablecimiento de contraseña"
         message = (
             f"Hola {user.first_name or 'usuario'},\n\n"
-            f"Para restablecer tu contrasena, haz clic en el siguiente enlace:\n"
+            f"Para restablecer tu contraseña, haz clic en el siguiente enlace:\n"
             f"{reset_link}\n\n"
-            f"Si tu no solicitaste este cambio, ignora este mensaje."
+            f"Si tú no solicitaste este cambio, ignora este mensaje."
         )
 
         send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
@@ -379,7 +379,7 @@ def reset_password(request, uidb64, token):
     password = request.data.get("password")
     if not password:
         return Response(
-            {"error": "La contrasena es obligatoria."},
+            {"error": "La contraseña es obligatoria."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -399,12 +399,12 @@ def reset_password(request, uidb64, token):
         user.must_change_password = False
         user.save(update_fields=["password", "must_change_password"])
         return Response(
-            {"message": "Contrasena restablecida exitosamente."},
+            {"message": "Contraseña restablecida exitosamente."},
             status=status.HTTP_200_OK,
         )
 
     return Response(
-        {"error": "Enlace invalido o expirado."},
+        {"error": "Enlace inválido o expirado."},
         status=status.HTTP_400_BAD_REQUEST,
     )
 
@@ -423,7 +423,7 @@ def complete_initial_password(request):
 
     if not new_password:
         return Response(
-            {"error": "Debes ingresar una nueva contrasena."},
+            {"error": "Debes ingresar una nueva contraseña."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -438,7 +438,7 @@ def complete_initial_password(request):
 
     return Response(
         {
-            "message": "Contrasena actualizada correctamente.",
+            "message": "Contraseña actualizada correctamente.",
             "user": {
                 "id": user.id,
                 "email": user.email,

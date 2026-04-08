@@ -154,13 +154,13 @@ def change_password(request):
 
     if not old_password or not new_password:
         return Response(
-            {"error": "Debes ingresar ambas contrasenas."},
+            {"error": "Debes ingresar ambas contraseñas."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     if not check_password(old_password, user.password):
         return Response(
-            {"error": "La contrasena actual no es correcta."},
+            {"error": "La contraseña actual no es correcta."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -172,4 +172,4 @@ def change_password(request):
     user.set_password(new_password)
     user.must_change_password = False
     user.save(update_fields=["password", "must_change_password"])
-    return Response({"message": "Contrasena actualizada correctamente."})
+    return Response({"message": "Contraseña actualizada correctamente."})

@@ -71,7 +71,7 @@ def permission_letters_collection(request):
                     titulo=f"Nuevo permiso: {permission_letter.title}",
                     mensaje=(
                         f"Tienes un permiso pendiente del curso {course.nombre}. "
-                        "Ingresa al modulo de permisos para que tu acudiente lo revise y lo responda."
+                        "Ingresa al módulo de permisos para que tu acudiente lo revise y lo responda."
                     ),
                 )
                 for student in students

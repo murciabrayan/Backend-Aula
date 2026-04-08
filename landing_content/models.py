@@ -63,6 +63,8 @@ class LandingCalendarEntry(TimestampedModel):
     title = models.CharField(max_length=220)
     detail = models.CharField(max_length=280, blank=True)
     event_date = models.DateField()
+    event_time = models.TimeField(null=True, blank=True)
+    location = models.CharField(max_length=220, blank=True)
     display_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -73,4 +75,3 @@ class LandingCalendarEntry(TimestampedModel):
 
     def __str__(self):
         return f"{self.title} - {self.event_date}"
-

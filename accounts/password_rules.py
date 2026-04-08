@@ -2,8 +2,8 @@ import re
 
 
 PASSWORD_POLICY_MESSAGE = (
-    "La contrasena debe tener minimo 8 caracteres, al menos una mayuscula, "
-    "un numero y un caracter especial."
+    "La contraseña debe tener mínimo 8 caracteres, al menos una mayúscula, "
+    "un número y un carácter especial."
 )
 
 

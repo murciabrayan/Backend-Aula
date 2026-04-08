@@ -107,6 +107,8 @@ class LandingCalendarEntrySerializer(serializers.ModelSerializer):
             "title",
             "detail",
             "event_date",
+            "event_time",
+            "location",
             "display_order",
             "is_active",
         ]

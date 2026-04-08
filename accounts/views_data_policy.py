@@ -86,7 +86,7 @@ def accept_data_policy(request):
     accepted = str(request.data.get("accept", "")).strip().lower() in {"1", "true", "yes", "on"}
     if not accepted:
         return Response(
-            {"error": "Debes aceptar la politica de tratamiento de datos para continuar."},
+            {"error": "Debes aceptar la política de tratamiento de datos para continuar."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -104,7 +104,7 @@ def accept_data_policy(request):
 
     return Response(
         {
-            "message": "La autorizacion de tratamiento de datos fue aceptada correctamente.",
+            "message": "La autorización de tratamiento de datos fue aceptada correctamente.",
             "user": _build_user_payload(user, request),
             "document": {
                 "id": document.id,
@@ -126,7 +126,7 @@ def update_data_policy_signature(request):
 
     if not user.has_accepted_data_policy:
         return Response(
-            {"error": "Primero debes aceptar la politica de tratamiento de datos."},
+            {"error": "Primero debes aceptar la política de tratamiento de datos."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
