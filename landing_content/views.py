@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.http import FileResponse
 from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -121,6 +123,27 @@ class LandingDocumentViewSet(viewsets.ModelViewSet):
     serializer_class = LandingDocumentSerializer
     permission_classes = [IsAdminRoleOrReadOnly]
     parser_classes = [MultiPartParser, FormParser]
+
+    @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny], url_path="preview-file")
+    def preview_file(self, request, pk=None):
+        document = self.get_object()
+
+        if not document.file:
+            return Response({"detail": "Archivo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            document.file.open("rb")
+        except (FileNotFoundError, OSError, ValueError):
+            return Response({"detail": "Archivo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        response = FileResponse(
+            document.file,
+            content_type="application/pdf",
+            as_attachment=False,
+            filename=document.file.name.rsplit("/", 1)[-1],
+        )
+        response["Access-Control-Expose-Headers"] = "Content-Type, Content-Disposition"
+        return response
 
 
 class LandingCalendarEntryViewSet(viewsets.ModelViewSet):

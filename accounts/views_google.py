@@ -1,10 +1,8 @@
-import hashlib
 import logging
 
 from django.conf import settings
 from google.auth.transport import requests
 from google.oauth2 import id_token
-from django.db import IntegrityError
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
@@ -15,12 +13,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 
 logger = logging.getLogger(__name__)
-
-
-def build_google_cedula(email: str) -> str:
-    # Keep the generated identifier within the model max_length (20)
-    digest = hashlib.sha1(email.strip().lower().encode("utf-8")).hexdigest()
-    return f"g{digest[:19]}"
 
 
 @api_view(["POST"])
@@ -40,10 +32,17 @@ def google_login(request):
         )
 
         email = idinfo.get("email")
+        email_verified = idinfo.get("email_verified", False)
         full_name = idinfo.get("name", "")
 
         if not email:
             return Response({"error": "Email no disponible"}, status=400)
+        
+        if not email_verified:
+            return Response(
+                {"error": "La cuenta de Google debe tener el correo verificado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         first_name = ""
         last_name = ""
@@ -53,35 +52,46 @@ def google_login(request):
             if len(parts) > 1:
                 last_name = parts[1]
 
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "cedula": build_google_cedula(email),
-                "first_name": first_name,
-                "last_name": last_name,
-                "role": "STUDENT",
-                "is_active": True,
-                "google_account": True,
-                "must_change_password": False,
-            },
-        )
+        try:
+            user = User.objects.get(email__iexact=email.strip())
+        except User.DoesNotExist:
+            return Response(
+                {
+                    "error": (
+                        "No existe una cuenta institucional registrada con este correo. "
+                        "Solicita al administrador la creación del usuario primero."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not user.is_active:
+            return Response(
+                {"error": "Tu cuenta institucional está inactiva."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if user.must_change_password:
+            return Response(
+                {
+                    "error": (
+                        "Debes ingresar primero con la contraseña inicial enviada al correo "
+                        "y crear tu contraseña personal antes de usar Google."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         updated_fields = []
-        if created:
-            updated_fields = []
-        else:
-            if not user.google_account:
-                user.google_account = True
-                updated_fields.append("google_account")
-            if first_name and not user.first_name:
-                user.first_name = first_name
-                updated_fields.append("first_name")
-            if last_name and not user.last_name:
-                user.last_name = last_name
-                updated_fields.append("last_name")
-            if user.must_change_password:
-                user.must_change_password = False
-                updated_fields.append("must_change_password")
+        if not user.google_account:
+            user.google_account = True
+            updated_fields.append("google_account")
+        if first_name and not user.first_name:
+            user.first_name = first_name
+            updated_fields.append("first_name")
+        if last_name and not user.last_name:
+            user.last_name = last_name
+            updated_fields.append("last_name")
 
         if updated_fields:
             user.save(update_fields=updated_fields)
@@ -115,12 +125,6 @@ def google_login(request):
 
     except ValueError:
         return Response({"error": "Token invalido"}, status=status.HTTP_400_BAD_REQUEST)
-    except IntegrityError:
-        logger.exception("Conflicto de integridad al iniciar sesion con Google para %s", request.data.get("email"))
-        return Response(
-            {"error": "No se pudo crear o actualizar el usuario con Google."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
     except Exception:
         logger.exception("Error inesperado en login con Google")
         return Response(

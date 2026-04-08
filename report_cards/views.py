@@ -181,6 +181,27 @@ def get_report_period_title(periodo_value):
     return mapping.get(periodo_str, periodo_str if periodo_str else "PERIODO")
 
 
+def parse_period_value(periodo_value):
+    periodo_str = str(periodo_value or "").strip().upper()
+
+    mapping = {
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "PERIODO 1": 1,
+        "PERIODO 2": 2,
+        "PERIODO 3": 3,
+        "PERIODO 4": 4,
+        "PRIMER PERIODO": 1,
+        "SEGUNDO PERIODO": 2,
+        "TERCER PERIODO": 3,
+        "CUARTO PERIODO": 4,
+    }
+
+    return mapping.get(periodo_str)
+
+
 def calculate_ranks(student_scores_map):
     valid_items = [
         (student_id, score)
@@ -280,13 +301,16 @@ def build_student_period_averages(report_rows):
     }
 
 
-def build_student_absences(student, course):
+def build_student_absences(student, course, selected_period=None):
     attendance_qs = Attendance.objects.filter(
         student=student,
         course=course,
         status="ABSENT",
         is_justified=False,
     )
+
+    if selected_period:
+        attendance_qs = attendance_qs.filter(periodo=selected_period)
 
     period_absences = {1: 0, 2: 0, 3: 0, 4: 0}
 
@@ -356,8 +380,9 @@ def build_course_positions(course, subjects, assignments, indicators_map):
     }
 
 
-def build_student_report_data(student_id):
+def build_student_report_data(student_id, periodo_value=""):
     student = get_object_or_404(User, pk=student_id, role="STUDENT")
+    selected_period = parse_period_value(periodo_value)
 
     course = student.cursos.select_related("docente", "director_curso").first()
     if not course:
@@ -369,13 +394,16 @@ def build_student_report_data(student_id):
         )
     )
 
-    assignments = list(
-        Assignment.objects.filter(materia__curso=course).select_related("materia")
-    )
+    assignments_qs = Assignment.objects.filter(materia__curso=course).select_related("materia")
+    if selected_period:
+        assignments_qs = assignments_qs.filter(periodo=selected_period)
+    assignments = list(assignments_qs)
 
     indicators_qs = SubjectIndicatorAssignment.objects.filter(
         materia__curso=course
     ).select_related("materia", "indicador").order_by("materia__nombre", "periodo", "id")
+    if selected_period:
+        indicators_qs = indicators_qs.filter(periodo=selected_period)
 
     indicators_map = defaultdict(list)
     for item in indicators_qs:
@@ -385,6 +413,8 @@ def build_student_report_data(student_id):
         estudiante=student,
         tarea__materia__curso=course
     ).select_related("tarea", "tarea__materia", "estudiante")
+    if selected_period:
+        submissions = submissions.filter(tarea__periodo=selected_period)
 
     submission_map = {
         (submission.estudiante_id, submission.tarea_id): submission
@@ -401,7 +431,7 @@ def build_student_report_data(student_id):
 
     boletin_agrupado = build_grouped_rows(report_rows)
     promedios = build_student_period_averages(report_rows)
-    fallas = build_student_absences(student, course)
+    fallas = build_student_absences(student, course, selected_period=selected_period)
     positions = build_course_positions(course, subjects, assignments, indicators_map)
 
     director_curso = ""
@@ -422,6 +452,7 @@ def build_student_report_data(student_id):
             "director_curso": director_curso,
         },
         "rector_nombre": RECTOR_FIJO,
+        "periodo_seleccionado": selected_period,
         "boletin": report_rows,
         "boletin_agrupado": boletin_agrupado,
         "promedio_general": promedios["definitiva"],
@@ -919,7 +950,8 @@ class StudentReportCardView(APIView):
         if request.user.role != "ADMIN":
             return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
-        data, error = build_student_report_data(student_id)
+        periodo = request.query_params.get("periodo", "")
+        data, error = build_student_report_data(student_id, periodo)
         if error:
             return Response(error, status=status.HTTP_404_NOT_FOUND)
 
@@ -933,12 +965,12 @@ class StudentReportCardPDFView(APIView):
         if request.user.role != "ADMIN":
             return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
-        data, error = build_student_report_data(student_id)
+        periodo = request.query_params.get("periodo", "")
+        data, error = build_student_report_data(student_id, periodo)
         if error:
             return Response(error, status=status.HTTP_404_NOT_FOUND)
 
         config = ReportCardConfig.objects.first()
-        periodo = request.query_params.get("periodo", "")
         pdf_buffer = build_report_card_pdf_buffer(data, config, periodo)
         filename = build_student_pdf_filename(data["estudiante"]["nombre"], periodo)
 
@@ -973,7 +1005,7 @@ class CourseReportCardsZIPView(APIView):
 
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             for student in students:
-                data, error = build_student_report_data(student.id)
+                data, error = build_student_report_data(student.id, periodo)
                 if error:
                     continue
 

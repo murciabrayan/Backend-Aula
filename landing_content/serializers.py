@@ -81,6 +81,7 @@ class LandingGalleryItemSerializer(MediaUrlMixin):
 
 class LandingDocumentSerializer(MediaUrlMixin):
     file_url = serializers.SerializerMethodField()
+    preview_url = serializers.SerializerMethodField()
 
     class Meta:
         model = LandingDocument
@@ -90,6 +91,7 @@ class LandingDocumentSerializer(MediaUrlMixin):
             "description",
             "file",
             "file_url",
+            "preview_url",
             "display_order",
             "is_active",
         ]
@@ -97,6 +99,12 @@ class LandingDocumentSerializer(MediaUrlMixin):
 
     def get_file_url(self, obj):
         return self.build_absolute_media_url(obj.file)
+
+    def get_preview_url(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return f"/api/landing/documents/{obj.pk}/preview-file/"
+        return request.build_absolute_uri(f"/api/landing/documents/{obj.pk}/preview-file/")
 
 
 class LandingCalendarEntrySerializer(serializers.ModelSerializer):

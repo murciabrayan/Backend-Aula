@@ -1,12 +1,11 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.static import serve
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.urls import re_path
-from django.conf.urls.static import static
 from django import get_version
 
 # Importaciones
@@ -31,7 +30,6 @@ from accounts.views_google import google_login
 from accounts.models import User
 from accounts.serializers import UserSerializer
 
-# IMPORTAR VIEWSETS
 from courses.views import CourseViewSet, SubjectViewSet, AreaViewSet
 
 # Routers
@@ -69,6 +67,25 @@ def root_status(request):
         response['users_probe'] = 'error'
         response['users_probe_error'] = str(exc)
     return JsonResponse(response)
+
+
+def serve_media_file(request, path):
+    if request.method == 'OPTIONS':
+        response = HttpResponse(status=204)
+    else:
+        response = serve(request, path, document_root=settings.MEDIA_ROOT)
+
+    origin = request.headers.get('Origin')
+    allowed_origins = {settings.FRONTEND_URL, *settings.CORS_ALLOWED_ORIGINS}
+
+    if origin and origin in allowed_origins:
+        response['Access-Control-Allow-Origin'] = origin
+        response['Vary'] = 'Origin'
+        response['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Range'
+
+    return response
+
 
 urlpatterns = [
     path('', root_status, name='root_status'),
@@ -124,7 +141,6 @@ urlpatterns = [
 urlpatterns += [
     re_path(
         rf"^{settings.MEDIA_URL.lstrip('/')}(?P<path>.*)$",
-        serve,
-        {"document_root": settings.MEDIA_ROOT},
+        serve_media_file,
     ),
 ]
