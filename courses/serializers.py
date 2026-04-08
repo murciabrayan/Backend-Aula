@@ -35,6 +35,47 @@ class SubjectSerializer(serializers.ModelSerializer):
         return ""
 
 
+class SubjectBulkAssignSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=100)
+    area = serializers.PrimaryKeyRelatedField(
+        queryset=Area.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+    teacher = serializers.PrimaryKeyRelatedField(
+        source="docente",
+        queryset=User.objects.filter(role="TEACHER"),
+        allow_null=True,
+        required=False,
+    )
+    courses = serializers.PrimaryKeyRelatedField(
+        source="cursos",
+        many=True,
+        queryset=Course.objects.all(),
+    )
+
+
+class SubjectCourseSyncSerializer(serializers.Serializer):
+    subject_id = serializers.PrimaryKeyRelatedField(source="subject", queryset=Subject.objects.all())
+    nombre = serializers.CharField(max_length=100)
+    area = serializers.PrimaryKeyRelatedField(
+        queryset=Area.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+    teacher = serializers.PrimaryKeyRelatedField(
+        source="docente",
+        queryset=User.objects.filter(role="TEACHER"),
+        allow_null=True,
+        required=False,
+    )
+    courses = serializers.PrimaryKeyRelatedField(
+        source="cursos",
+        many=True,
+        queryset=Course.objects.all(),
+    )
+
+
 # ===================== AREA =====================
 
 class AreaSerializer(serializers.ModelSerializer):

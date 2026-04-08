@@ -145,7 +145,8 @@ class AssignmentViewSet(viewsets.ModelViewSet):
                 "Solo el docente asignado a esta materia puede crear tareas."
             )
 
-        assignment = serializer.save()
+        # Las tareas normales de este endpoint siempre requieren entrega.
+        assignment = serializer.save(requires_submission=True)
         self._notify_new_assignment(assignment)
 
     def perform_update(self, serializer):
@@ -160,7 +161,7 @@ class AssignmentViewSet(viewsets.ModelViewSet):
                 "Solo el docente asignado a esta materia puede editar tareas."
             )
 
-        serializer.save()
+        serializer.save(requires_submission=True)
 
     def perform_destroy(self, instance):
         user = self.request.user
