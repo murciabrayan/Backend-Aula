@@ -13,6 +13,7 @@ from .models import Attendance, AttendanceEvent
 from .serializers import AttendanceSerializer, BulkAttendanceSerializer
 
 
+# MANPROG_CAPTURA_ATTENDANCE_VIEWS_INICIO: registro de asistencia, trazabilidad de eventos y cargas por lote del docente.
 def build_attendance_snapshot(attendance):
     return {
         "status": attendance.status,
@@ -400,3 +401,4 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+# MANPROG_CAPTURA_ATTENDANCE_VIEWS_FIN

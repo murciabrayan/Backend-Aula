@@ -42,6 +42,7 @@ from .serializers import (
 )
 
 
+# MANPROG_CAPTURA_REPORT_CARDS_INICIO: cálculo académico, agrupación por áreas y generación de boletines PDF/ZIP.
 RECTOR_FIJO = "Leonardo Murcia"
 
 
@@ -1032,3 +1033,4 @@ class CourseReportCardsZIPView(APIView):
             filename=zip_filename,
             content_type="application/zip",
         )
+# MANPROG_CAPTURA_REPORT_CARDS_FIN

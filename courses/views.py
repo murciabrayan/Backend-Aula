@@ -15,6 +15,7 @@ from accounts.models import User
 from accounts.permissions import IsAdminRoleOrReadOnly
 
 
+# MANPROG_CAPTURA_COURSES_VIEWS_INICIO: CRUD de cursos, asignación de estudiantes, áreas, materias y sincronización entre cursos.
 def resolve_area_for_course(source_area, course):
     if not source_area:
         return None
@@ -332,3 +333,4 @@ class SubjectViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+# MANPROG_CAPTURA_COURSES_VIEWS_FIN

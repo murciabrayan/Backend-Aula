@@ -13,6 +13,7 @@ from .serializers import UserDocumentSerializer
 User = get_user_model()
 
 
+# MANPROG_CAPTURA_PROFILE_API_INICIO: consulta y actualización del perfil, avatar, foto y datos específicos de cada rol.
 @api_view(["GET", "PUT"])
 @permission_classes([permissions.IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser, JSONParser])

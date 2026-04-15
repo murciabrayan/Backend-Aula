@@ -24,6 +24,7 @@ from .serializers import (
     TeacherFollowUpSerializer,
 )
 
+# MANPROG_CAPTURA_ALERTS_ENGINE_INICIO: reglas de generación, seguimiento y cierre de alertas académicas.
 
 LOW_GRADE_THRESHOLD = 3.0
 LOW_GRADE_WARNING_THRESHOLD = 3.4
@@ -787,3 +788,4 @@ class StudentAcademicSummaryView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+# MANPROG_CAPTURA_ALERTS_ENGINE_FIN

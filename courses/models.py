@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 
 
+# MANPROG_CAPTURA_COURSES_MODELS_INICIO: estructura académica del sistema con cursos, áreas y materias.
 class Course(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
     descripcion = models.TextField(blank=True, null=True)
@@ -49,6 +50,7 @@ class Area(models.Model):
 
     def __str__(self):
         return f"{self.nombre} - {self.curso.nombre}"
+# MANPROG_CAPTURA_COURSES_MODELS_FIN
 
 
 class Subject(models.Model):

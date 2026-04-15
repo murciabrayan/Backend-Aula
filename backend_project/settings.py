@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import dj_database_url
 
+# MANPROG_CAPTURA_BP_SETTINGS_INICIO: configuración central de Django, apps instaladas, base de datos, CORS, JWT, correo y seguridad.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -240,3 +241,4 @@ USE_X_FORWARDED_HOST = True
 SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '0' if DEBUG else '31536000'))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', not DEBUG)
 SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', not DEBUG)
+# MANPROG_CAPTURA_BP_SETTINGS_FIN

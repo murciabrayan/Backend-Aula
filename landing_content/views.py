@@ -24,6 +24,7 @@ from .serializers import (
 from backend_project.email_utils import build_html_email
 
 
+# MANPROG_CAPTURA_LANDING_API_INICIO: API pública y administrativa de la landing institucional.
 class LandingContentView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -150,3 +151,4 @@ class LandingCalendarEntryViewSet(viewsets.ModelViewSet):
     queryset = LandingCalendarEntry.objects.all()
     serializer_class = LandingCalendarEntrySerializer
     permission_classes = [IsAdminRoleOrReadOnly]
+# MANPROG_CAPTURA_LANDING_API_FIN

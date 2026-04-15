@@ -34,6 +34,7 @@ User = get_user_model()
 token_generator = PasswordResetTokenGenerator()
 logger = logging.getLogger(__name__)
 
+# MANPROG_CAPTURA_ACCOUNTS_VIEWS_USUARIOS_INICIO: autenticación JWT, gestión administrativa de usuarios y carga masiva desde Excel.
 
 def _normalize_bulk_user_row(*, row, role):
     payload = {
@@ -337,6 +338,7 @@ class TeacherProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminRole]
 
 
+# MANPROG_CAPTURA_ACCOUNTS_VIEWS_PASSWORD_INICIO: recuperación de contraseña y primer acceso obligatorio.
 @api_view(["POST"])
 @permission_classes([])
 def forgot_password(request):
@@ -460,3 +462,5 @@ def complete_initial_password(request):
         },
         status=status.HTTP_200_OK,
     )
+
+# MANPROG_CAPTURA_ACCOUNTS_VIEWS_PASSWORD_FIN
