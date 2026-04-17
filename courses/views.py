@@ -83,6 +83,24 @@ class CourseViewSet(viewsets.ModelViewSet):
             )
 
         users = User.objects.filter(id__in=ids, role='STUDENT')
+        already_assigned = Course.objects.filter(estudiantes__in=users).exclude(pk=course.pk).distinct()
+
+        if already_assigned.exists():
+            assigned_students = users.filter(cursos__in=already_assigned).distinct()
+            assigned_names = ", ".join(
+                f"{student.first_name} {student.last_name}".strip()
+                for student in assigned_students
+            )
+            return Response(
+                {
+                    'detail': (
+                        'No se puede asignar un estudiante a dos cursos. '
+                        f'Ya tienen curso asignado: {assigned_names}.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         course.estudiantes.add(*users)
 
         return Response(

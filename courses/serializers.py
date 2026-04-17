@@ -141,6 +141,7 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         nombre = attrs.get("nombre")
+        students = attrs.get("estudiantes")
 
         if nombre:
             qs = Course.objects.filter(nombre__iexact=nombre)
@@ -151,6 +152,25 @@ class CourseSerializer(serializers.ModelSerializer):
             if qs.exists():
                 raise serializers.ValidationError({
                     "name": "Ya existe un curso con ese nombre."
+                })
+
+        if students is not None:
+            course_query = Course.objects.filter(estudiantes__in=students).distinct()
+
+            if self.instance:
+                course_query = course_query.exclude(pk=self.instance.pk)
+
+            if course_query.exists():
+                assigned_names = ", ".join(
+                    f"{student.first_name} {student.last_name}".strip()
+                    for student in students
+                    if course_query.filter(estudiantes=student).exists()
+                )
+                raise serializers.ValidationError({
+                    "students": (
+                        "No se puede asignar un estudiante a dos cursos. "
+                        f"Ya tienen curso asignado: {assigned_names}."
+                    )
                 })
 
         return attrs
