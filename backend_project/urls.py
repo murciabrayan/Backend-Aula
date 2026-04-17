@@ -32,7 +32,6 @@ from accounts.serializers import UserSerializer
 
 from courses.views import CourseViewSet, SubjectViewSet, AreaViewSet
 
-# MANPROG_CAPTURA_BP_URLS_INICIO: enrutador principal del backend con endpoints de autenticación, perfil y módulos académicos.
 # Routers
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -145,4 +144,3 @@ urlpatterns += [
         serve_media_file,
     ),
 ]
-# MANPROG_CAPTURA_BP_URLS_FIN

@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: proyecto-aula-backend
+    env: python
+    plan: starter
+    buildCommand: bash build.sh
+    startCommand: python manage.py migrate --settings=backend_project.production_settings && python manage.py ensure_admin --settings=backend_project.production_settings && gunicorn backend_project.wsgi:application --env DJANGO_SETTINGS_MODULE=backend_project.production_settings --bind 0.0.0.0:$PORT --workers 3 --timeout 120
+    healthCheckPath: /
+    disk:
+      name: proyecto-aula-media
+      mountPath: /opt/render/project/src/media
+      sizeGB: 1
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: backend_project.production_settings
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: proyecto-aula-db
+          property: connectionString
+      - key: MEDIA_ROOT
+        value: /opt/render/project/src/media
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: LANDING_CONTACT_EMAIL
+        sync: false
+      - key: DRF_THROTTLE_ANON
+        value: 10000/min
+      - key: DRF_THROTTLE_USER
+        value: 10000/min
+      - key: PYTHON_VERSION
+        value: 3.13.12
+
+databases:
+  - name: proyecto-aula-db
+    plan: starter
+    databaseName: proyecto_aula
+    user: proyecto_aula

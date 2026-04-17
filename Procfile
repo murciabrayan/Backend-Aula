@@ -1,1 +1,1 @@
-web: gunicorn backend_project.wsgi:application --bind 0.0.0.0:$PORT --workers 3
+web: python manage.py migrate --settings=backend_project.production_settings && python manage.py ensure_admin --settings=backend_project.production_settings && gunicorn backend_project.wsgi:application --env DJANGO_SETTINGS_MODULE=backend_project.production_settings --bind 0.0.0.0:$PORT --workers 3 --timeout 120
