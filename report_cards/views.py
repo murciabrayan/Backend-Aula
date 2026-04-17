@@ -42,7 +42,6 @@ from .serializers import (
 )
 
 
-# MANPROG_CAPTURA_REPORT_CARDS_INICIO: cálculo académico, agrupación por áreas y generación de boletines PDF/ZIP.
 RECTOR_FIJO = "Leonardo Murcia"
 
 
@@ -123,6 +122,35 @@ def format_score(value):
 
 def format_int_or_blank(value):
     return str(value) if value is not None else ""
+
+
+def get_user_signature_bytes(user_id):
+    if not user_id:
+        return None
+
+    user = User.objects.filter(pk=user_id).only("signature_image").first()
+    if not user or not user.signature_image:
+        return None
+
+    try:
+        user.signature_image.open("rb")
+        return user.signature_image.read()
+    except Exception:
+        return None
+    finally:
+        try:
+            user.signature_image.close()
+        except Exception:
+            pass
+
+
+def build_signature_image(signature_bytes):
+    if not signature_bytes:
+        return Spacer(1, 1.2 * cm)
+
+    signature = Image(BytesIO(signature_bytes))
+    signature._restrictSize(5.4 * cm, 1.3 * cm)
+    return signature
 
 
 def format_indicator_text(text):
@@ -450,6 +478,7 @@ def build_student_report_data(student_id, periodo_value=""):
         "curso": {
             "id": course.id,
             "nombre": course.nombre,
+            "director_curso_id": teacher.id if teacher else None,
             "director_curso": director_curso,
         },
         "rector_nombre": RECTOR_FIJO,
@@ -856,9 +885,16 @@ def build_report_card_pdf_buffer(data, config, periodo_seleccionado=""):
 
     director_name = data["curso"]["director_curso"] or "Director de grupo"
     rector_name = RECTOR_FIJO
+    director_signature = build_signature_image(
+        get_user_signature_bytes(data["curso"].get("director_curso_id"))
+    )
 
     signatures = Table(
         [
+            [
+                director_signature,
+                Spacer(1, 1.2 * cm),
+            ],
             [
                 Paragraph("______________________________", small_center),
                 Paragraph("______________________________", small_center),
@@ -873,6 +909,7 @@ def build_report_card_pdf_buffer(data, config, periodo_seleccionado=""):
             ],
         ],
         colWidths=[7.8 * cm, 7.8 * cm],
+        rowHeights=[1.35 * cm, None, None, None],
     )
     signatures.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
@@ -1033,4 +1070,3 @@ class CourseReportCardsZIPView(APIView):
             filename=zip_filename,
             content_type="application/zip",
         )
-# MANPROG_CAPTURA_REPORT_CARDS_FIN

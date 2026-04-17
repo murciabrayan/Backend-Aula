@@ -15,7 +15,13 @@ from accounts.models import User
 from accounts.permissions import IsAdminRoleOrReadOnly
 
 
-# MANPROG_CAPTURA_COURSES_VIEWS_INICIO: CRUD de cursos, asignación de estudiantes, áreas, materias y sincronización entre cursos.
+def is_positive_int(value):
+    try:
+        return int(value) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def resolve_area_for_course(source_area, course):
     if not source_area:
         return None
@@ -149,6 +155,8 @@ class AreaViewSet(viewsets.ModelViewSet):
 
         course_id = self.request.query_params.get("course")
         if course_id:
+            if not is_positive_int(course_id):
+                return Area.objects.none()
             queryset = queryset.filter(curso_id=course_id)
 
         if user.role == "ADMIN":
@@ -178,10 +186,14 @@ class SubjectViewSet(viewsets.ModelViewSet):
 
         course_id = self.request.query_params.get('course')
         if course_id:
+            if not is_positive_int(course_id):
+                return Subject.objects.none()
             queryset = queryset.filter(curso__id=course_id)
 
         area_id = self.request.query_params.get('area')
         if area_id:
+            if not is_positive_int(area_id):
+                return Subject.objects.none()
             queryset = queryset.filter(area_id=area_id)
 
         if user.role == 'ADMIN':
@@ -333,4 +345,3 @@ class SubjectViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
-# MANPROG_CAPTURA_COURSES_VIEWS_FIN

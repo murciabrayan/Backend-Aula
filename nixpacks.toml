@@ -1,7 +1,7 @@
 providers = ["python"]
 
 [phases.build]
-cmds = ["python manage.py collectstatic --noinput"]
+cmds = ["python manage.py collectstatic --noinput --settings=backend_project.production_settings"]
 
 [start]
-cmd = "gunicorn backend_project.wsgi:application --bind 0.0.0.0:$PORT --workers 3"
+cmd = "gunicorn backend_project.wsgi:application --env DJANGO_SETTINGS_MODULE=backend_project.production_settings --bind 0.0.0.0:$PORT --workers 3"

@@ -14,7 +14,6 @@ from .serializers import (
     SubmissionSerializer,
 )
 
-# MANPROG_CAPTURA_ASSIGNMENTS_VIEWS_INICIO: gestión de tareas, actividades directas, entregas y calificación docente.
 
 def get_subject_teacher_id(subject):
     return getattr(subject, "docente_id", None) or getattr(subject.curso, "director_curso_id", None)
@@ -369,4 +368,3 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-# MANPROG_CAPTURA_ASSIGNMENTS_VIEWS_FIN

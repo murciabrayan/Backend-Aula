@@ -4,7 +4,6 @@ from django.conf import settings
 from urllib.parse import quote
 
 
-# MANPROG_CAPTURA_ACCOUNTS_MODELS_INICIO: modelo de usuario personalizado y perfiles por rol.
 class UserManager(BaseUserManager):
     def create_user(self, email, cedula, password=None, **extra_fields):
         if not email:
@@ -152,4 +151,3 @@ class UserDocument(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.user.email}"
-# MANPROG_CAPTURA_ACCOUNTS_MODELS_FIN

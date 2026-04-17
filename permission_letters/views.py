@@ -16,7 +16,6 @@ from .pdf_utils import PERMISSION_DOCUMENT_CATEGORY, build_permission_response_p
 from .serializers import PermissionLetterSerializer, StudentPermissionLetterSerializer
 
 
-# MANPROG_CAPTURA_PERMISSION_LETTERS_INICIO: permisos institucionales, respuesta del acudiente y PDF firmado.
 def _is_admin(user):
     return user.is_authenticated and user.role == "ADMIN"
 
@@ -196,4 +195,3 @@ def respond_permission_letter(request, recipient_id):
         },
         status=status.HTTP_200_OK,
     )
-# MANPROG_CAPTURA_PERMISSION_LETTERS_FIN
