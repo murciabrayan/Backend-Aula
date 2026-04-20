@@ -11,3 +11,5 @@ Pillow
 google-auth
 requests
 reportlab
+cloudinary
+django-cloudinary-storage

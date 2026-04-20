@@ -97,29 +97,51 @@ def user_profile(request):
     user.save()
 
     if user.role == "STUDENT":
-        StudentProfile.objects.update_or_create(
+        student, _ = StudentProfile.objects.get_or_create(
             user=user,
             defaults={
-                "grado": request.data.get("grado", ""),
-                "acudiente_nombre": request.data.get("acudiente_nombre", ""),
-                "acudiente_cedula": request.data.get("acudiente_cedula", ""),
-                "acudiente_telefono": request.data.get("acudiente_telefono", ""),
-                "acudiente_email": request.data.get("acudiente_email", ""),
+                "grado": "",
+                "acudiente_nombre": "",
+                "acudiente_cedula": "",
+                "acudiente_telefono": "",
+                "acudiente_email": "",
             },
         )
+        defaults = {}
+        for field in (
+            "grado",
+            "acudiente_nombre",
+            "acudiente_cedula",
+            "acudiente_telefono",
+            "acudiente_email",
+        ):
+            if field in request.data:
+                defaults[field] = request.data.get(field, "")
+        if defaults:
+            for field, value in defaults.items():
+                setattr(student, field, value)
+            student.save(update_fields=list(defaults.keys()))
     elif user.role == "TEACHER":
-        TeacherProfile.objects.update_or_create(
+        teacher, _ = TeacherProfile.objects.get_or_create(
             user=user,
-            defaults={
-                "especialidad": request.data.get("especialidad", ""),
-                "titulo": request.data.get("titulo", ""),
-            },
+            defaults={"especialidad": "", "titulo": ""},
         )
+        defaults = {}
+        for field in ("especialidad", "titulo"):
+            if field in request.data:
+                defaults[field] = request.data.get(field, "")
+        if defaults:
+            for field, value in defaults.items():
+                setattr(teacher, field, value)
+            teacher.save(update_fields=list(defaults.keys()))
     elif user.role == "ADMIN":
-        AdminProfile.objects.update_or_create(
+        admin, _ = AdminProfile.objects.get_or_create(
             user=user,
-            defaults={"cargo": request.data.get("cargo", "")},
+            defaults={"cargo": ""},
         )
+        if "cargo" in request.data:
+            admin.cargo = request.data.get("cargo", "")
+            admin.save(update_fields=["cargo"])
 
     return Response(
         {

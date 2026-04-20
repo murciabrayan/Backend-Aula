@@ -203,6 +203,25 @@ class UserSerializer(serializers.ModelSerializer):
         email = attrs.get("email")
         if email and "@" not in email:
             raise serializers.ValidationError({"email": "Ingresa un correo valido con arroba."})
+
+        role = attrs.get("role", getattr(self.instance, "role", None))
+        if role == "STUDENT":
+            student_profile = getattr(self.instance, "student_profile", None)
+            required_fields = {
+                "acudiente_nombre": "El nombre del acudiente es obligatorio.",
+                "acudiente_cedula": "La cedula del acudiente es obligatoria.",
+                "acudiente_telefono": "El telefono del acudiente es obligatorio.",
+            }
+            errors = {}
+            for field, message in required_fields.items():
+                value = attrs.get(field)
+                if value is None and student_profile is not None:
+                    value = getattr(student_profile, field, "")
+                if not str(value or "").strip():
+                    errors[field] = message
+            if errors:
+                raise serializers.ValidationError(errors)
+
         return attrs
 
     def create(self, validated_data):
@@ -251,16 +270,17 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
     def update(self, instance, validated_data):
+        missing = object()
         password = validated_data.pop('password', None)
         role = validated_data.get('role', instance.role)
 
-        grado = validated_data.pop('grado', None)
-        acudiente_nombre = validated_data.pop('acudiente_nombre', None)
-        acudiente_cedula = validated_data.pop('acudiente_cedula', None)
-        acudiente_telefono = validated_data.pop('acudiente_telefono', None)
-        acudiente_email = validated_data.pop('acudiente_email', None)
-        especialidad = validated_data.pop('especialidad', None)
-        titulo = validated_data.pop('titulo', None)
+        grado = validated_data.pop('grado', missing)
+        acudiente_nombre = validated_data.pop('acudiente_nombre', missing)
+        acudiente_cedula = validated_data.pop('acudiente_cedula', missing)
+        acudiente_telefono = validated_data.pop('acudiente_telefono', missing)
+        acudiente_email = validated_data.pop('acudiente_email', missing)
+        especialidad = validated_data.pop('especialidad', missing)
+        titulo = validated_data.pop('titulo', missing)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -270,23 +290,47 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
 
         if role == "STUDENT":
-            StudentProfile.objects.update_or_create(
+            student, _ = StudentProfile.objects.get_or_create(
                 user=instance,
                 defaults={
-                    'grado': grado or "",
-                    'acudiente_nombre': acudiente_nombre or "",
-                    'acudiente_cedula': acudiente_cedula or "",
-                    'acudiente_telefono': acudiente_telefono or "",
-                    'acudiente_email': acudiente_email or "",
-                }
+                    'grado': "",
+                    'acudiente_nombre': "",
+                    'acudiente_cedula': "",
+                    'acudiente_telefono': "",
+                    'acudiente_email': "",
+                },
             )
+            profile_updates = {}
+            profile_values = {
+                'grado': grado,
+                'acudiente_nombre': acudiente_nombre,
+                'acudiente_cedula': acudiente_cedula,
+                'acudiente_telefono': acudiente_telefono,
+                'acudiente_email': acudiente_email,
+            }
+            for field, value in profile_values.items():
+                if value is not missing:
+                    profile_updates[field] = value or ""
+            if profile_updates:
+                for field, value in profile_updates.items():
+                    setattr(student, field, value)
+                student.save(update_fields=list(profile_updates.keys()))
         elif role == "TEACHER":
-            TeacherProfile.objects.update_or_create(
+            teacher, _ = TeacherProfile.objects.get_or_create(
                 user=instance,
                 defaults={
-                    'especialidad': especialidad or "",
-                    'titulo': titulo or "",
-                }
+                    'especialidad': "",
+                    'titulo': "",
+                },
             )
+            profile_updates = {}
+            if especialidad is not missing:
+                profile_updates['especialidad'] = especialidad or ""
+            if titulo is not missing:
+                profile_updates['titulo'] = titulo or ""
+            if profile_updates:
+                for field, value in profile_updates.items():
+                    setattr(teacher, field, value)
+                teacher.save(update_fields=list(profile_updates.keys()))
 
         return instance

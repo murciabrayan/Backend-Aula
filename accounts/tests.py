@@ -53,6 +53,30 @@ class UserSerializerTests(TestCase):
         mocked_email.assert_called_once()
 
     @patch("accounts.serializers.send_welcome_credentials_email")
+    def test_creates_student_without_grade_for_later_course_assignment(self, mocked_email):
+        serializer = UserSerializer(
+            data={
+                "email": "sin-grado@example.com",
+                "cedula": "300400500",
+                "first_name": "Juan",
+                "last_name": "Perez",
+                "direccion": "Calle 5",
+                "rh": "A+",
+                "role": "STUDENT",
+                "acudiente_nombre": "Fernando Perez",
+                "acudiente_cedula": "1239874",
+                "acudiente_telefono": "3123456789",
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        user = serializer.save()
+
+        student_profile = StudentProfile.objects.get(user=user)
+        self.assertEqual(student_profile.grado, "")
+        mocked_email.assert_called_once()
+
+    @patch("accounts.serializers.send_welcome_credentials_email")
     def test_creates_teacher_profile_for_teacher_user(self, mocked_email):
         serializer = UserSerializer(
             data={
@@ -92,6 +116,40 @@ class UserSerializerTests(TestCase):
         self.assertIn("rh", serializer.errors)
         self.assertIn("acudiente_telefono", serializer.errors)
 
+    @patch("accounts.serializers.send_welcome_credentials_email")
+    def test_partial_update_preserves_student_guardian_data(self, mocked_email):
+        user = UserSerializer(
+            data={
+                "email": "perfil@example.com",
+                "cedula": "111222333",
+                "first_name": "Camila",
+                "last_name": "Rios",
+                "direccion": "Calle 3",
+                "rh": "B+",
+                "role": "STUDENT",
+                "grado": "Sexto",
+                "acudiente_nombre": "Laura Rios",
+                "acudiente_cedula": "1234567890",
+                "acudiente_telefono": "3211234567",
+            }
+        )
+        self.assertTrue(user.is_valid(), user.errors)
+        instance = user.save()
+
+        serializer = UserSerializer(
+            instance,
+            data={"first_name": "Camila Maria"},
+            partial=True,
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        serializer.save()
+
+        student_profile = StudentProfile.objects.get(user=instance)
+        self.assertEqual(student_profile.acudiente_nombre, "Laura Rios")
+        self.assertEqual(student_profile.acudiente_cedula, "1234567890")
+        self.assertEqual(student_profile.acudiente_telefono, "3211234567")
+        mocked_email.assert_called_once()
+
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class AuthenticationApiTests(APITestCase):
@@ -117,3 +175,43 @@ class AuthenticationApiTests(APITestCase):
         self.assertIn("access", response.data)
         self.assertIn("refresh", response.data)
         self.assertEqual(response.data["user"]["role"], "ADMIN")
+
+
+class ProfileApiTests(APITestCase):
+    def test_avatar_update_preserves_student_guardian_data(self):
+        user = User.objects.create_user(
+            email="estudiante-avatar@example.com",
+            cedula="555666777",
+            password="Clave123!",
+            role="STUDENT",
+            first_name="Nicolas",
+            last_name="Gomez",
+            direccion="Calle 4",
+            rh="A+",
+        )
+        StudentProfile.objects.create(
+            user=user,
+            grado="Septimo",
+            acudiente_nombre="Diana Gomez",
+            acudiente_cedula="9876543210",
+            acudiente_telefono="3112223344",
+            acudiente_email="diana@example.com",
+        )
+
+        self.client.force_authenticate(user=user)
+        response = self.client.put(
+            "/api/profile/",
+            {
+                "avatar_style": "personas",
+                "avatar_seed": "nicolas-avatar",
+                "clear_profile_photo": "true",
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        student_profile = StudentProfile.objects.get(user=user)
+        self.assertEqual(student_profile.acudiente_nombre, "Diana Gomez")
+        self.assertEqual(student_profile.acudiente_cedula, "9876543210")
+        self.assertEqual(student_profile.acudiente_telefono, "3112223344")
+        self.assertEqual(student_profile.acudiente_email, "diana@example.com")
