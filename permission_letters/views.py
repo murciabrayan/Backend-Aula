@@ -82,7 +82,7 @@ def permission_letters_collection(request):
     return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
-@api_view(["GET"])
+@api_view(["GET", "DELETE"])
 @permission_classes([permissions.IsAuthenticated])
 @throttle_classes([])
 def permission_letter_detail(request, pk):
@@ -93,6 +93,23 @@ def permission_letter_detail(request, pk):
         PermissionLetter.objects.select_related("course").prefetch_related("recipients__student"),
         pk=pk,
     )
+
+    if request.method == "DELETE":
+        recipients = list(permission_letter.recipients.select_related("user_document"))
+        for recipient in recipients:
+            if recipient.signed_document:
+                recipient.signed_document.delete(save=False)
+            user_document = recipient.user_document
+            if user_document:
+                if user_document.file:
+                    user_document.file.delete(save=False)
+                user_document.delete()
+
+        if permission_letter.document:
+            permission_letter.document.delete(save=False)
+        permission_letter.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     serializer = PermissionLetterSerializer(permission_letter, context={"request": request})
     return Response(serializer.data)
 

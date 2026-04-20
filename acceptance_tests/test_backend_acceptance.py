@@ -7,7 +7,7 @@ from attendance.models import Attendance
 from calendar_app.models import CalendarEvent
 from courses.models import Course, Subject
 from notifications.models import Notification
-from permission_letters.models import PermissionLetterRecipient
+from permission_letters.models import PermissionLetter, PermissionLetterRecipient
 
 
 User = get_user_model()
@@ -237,3 +237,32 @@ class PermissionLetterAcceptanceTests(AcceptanceBase):
         self.assertEqual(recipient.status, PermissionLetterRecipient.STATUS_REJECTED)
         self.assertIsNotNone(recipient.signed_document)
         self.assertTrue(Notification.objects.filter(usuario=admin, titulo__contains="Respuesta de permiso").exists())
+
+    def test_admin_can_delete_permission_letter(self):
+        admin, _, student, course, _ = self.create_basic_academic_setup()
+        self.client.force_authenticate(admin)
+
+        document = SimpleUploadedFile(
+            "permiso.pdf",
+            b"%PDF-1.4 permiso para eliminar",
+            content_type="application/pdf",
+        )
+        create_response = self.client.post(
+            "/api/permission-letters/",
+            {
+                "title": "Permiso temporal",
+                "description": "Permiso creado para validar eliminacion.",
+                "course": course.id,
+                "document": document,
+            },
+            format="multipart",
+        )
+        self.assertEqual(create_response.status_code, 201, create_response.data)
+        letter_id = create_response.data["id"]
+        self.assertTrue(PermissionLetterRecipient.objects.filter(student=student).exists())
+
+        delete_response = self.client.delete(f"/api/permission-letters/{letter_id}/")
+
+        self.assertEqual(delete_response.status_code, 204)
+        self.assertFalse(PermissionLetter.objects.filter(id=letter_id).exists())
+        self.assertFalse(PermissionLetterRecipient.objects.filter(student=student).exists())

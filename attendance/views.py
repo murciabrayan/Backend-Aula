@@ -234,7 +234,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     "id": student.id,
                     "student_name": f"{student.first_name} {student.last_name}".strip(),
                     "attendance_id": attendance.id if attendance else None,
-                    "status": attendance.status if attendance else "PRESENT",
+                    "status": attendance.status if attendance else "UNREGISTERED",
                     "is_justified": attendance.is_justified if attendance else False,
                     "justification_type": attendance.justification_type if attendance else "NONE",
                     "notes": attendance.teacher_notes if attendance else "",
