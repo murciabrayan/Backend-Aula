@@ -199,6 +199,41 @@ class AuthenticationApiTests(APITestCase):
 
 
 class ProfileApiTests(APITestCase):
+    def test_admin_can_reset_user_access_with_temporary_password(self):
+        admin = User.objects.create_user(
+            email="admin-reset@example.com",
+            cedula="1010",
+            password="Admin123!",
+            role="ADMIN",
+            first_name="Admin",
+            last_name="Reset",
+            direccion="Calle Admin",
+            rh="O+",
+        )
+        student = User.objects.create_user(
+            email="estudiante-reset@example.com",
+            cedula="2020",
+            password="Vieja123!",
+            role="STUDENT",
+            first_name="Luisa",
+            last_name="Martinez",
+            direccion="Calle 10",
+            rh="A+",
+            must_change_password=False,
+        )
+
+        self.client.force_authenticate(user=admin)
+        response = self.client.post(f"/api/users/{student.id}/reset-access/", format="json")
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIn("credentials", response.data)
+        self.assertEqual(response.data["credentials"]["login_identifier"], "2020")
+
+        student.refresh_from_db()
+        self.assertTrue(student.must_change_password)
+        self.assertFalse(student.check_password("Vieja123!"))
+        self.assertTrue(student.check_password(response.data["credentials"]["temporary_password"]))
+
     def test_avatar_update_preserves_student_guardian_data(self):
         user = User.objects.create_user(
             email="estudiante-avatar@example.com",

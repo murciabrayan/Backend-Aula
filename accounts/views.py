@@ -21,6 +21,7 @@ from .excel_utils import (
 )
 from .models import StudentProfile, TeacherProfile, User, UserDocument
 from .permissions import IsAdminRole
+from .onboarding import generate_temporary_password
 from .password_rules import validate_password_strength
 from .serializers import (
     CustomTokenObtainPairSerializer,
@@ -82,6 +83,16 @@ def _serialize_bulk_row_result(*, sheet_name, row_number, payload, serializer):
     }
 
 
+def _build_credentials_payload(user, temporary_password=None):
+    return {
+        "full_name": f"{user.first_name} {user.last_name}".strip(),
+        "role": user.role,
+        "login_identifier": getattr(user, "_login_identifier", build_login_identifier(user)),
+        "temporary_password": temporary_password or getattr(user, "_temporary_password", ""),
+        "delivery_channel": getattr(user, "_credentials_delivery", "manual"),
+    }
+
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     throttle_classes = [AnonRateThrottle]
@@ -124,13 +135,7 @@ class UserViewSet(viewsets.ModelViewSet):
         created_user = getattr(self, "instance", None)
         temporary_password = getattr(created_user, "_temporary_password", None)
         if temporary_password:
-            response.data["credentials"] = {
-                "full_name": f"{created_user.first_name} {created_user.last_name}".strip(),
-                "role": created_user.role,
-                "login_identifier": getattr(created_user, "_login_identifier", build_login_identifier(created_user)),
-                "temporary_password": temporary_password,
-                "delivery_channel": getattr(created_user, "_credentials_delivery", "manual"),
-            }
+            response.data["credentials"] = _build_credentials_payload(created_user, temporary_password)
         warning = getattr(created_user, "_welcome_email_error", None)
         if warning:
             response.data["warning"] = (
@@ -165,6 +170,25 @@ class UserViewSet(viewsets.ModelViewSet):
         document = get_object_or_404(UserDocument, pk=document_id, user=user)
         document.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="reset-access")
+    def reset_access(self, request, pk=None):
+        user = self.get_object()
+        temporary_password = generate_temporary_password()
+        user.set_password(temporary_password)
+        user.must_change_password = True
+        user.save(update_fields=["password", "must_change_password"])
+        user._temporary_password = temporary_password
+        user._login_identifier = build_login_identifier(user)
+        user._credentials_delivery = "manual" if user.role == "STUDENT" else "email"
+
+        return Response(
+            {
+                "message": "Se generaron nuevas credenciales temporales para el usuario.",
+                "credentials": _build_credentials_payload(user, temporary_password),
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=["get"], url_path="bulk/template")
     def bulk_template(self, request):
@@ -308,13 +332,7 @@ class UserViewSet(viewsets.ModelViewSet):
                         "email": user.email,
                         "role": user.role,
                         "name": f"{user.first_name} {user.last_name}".strip(),
-                        "credentials": {
-                            "full_name": f"{user.first_name} {user.last_name}".strip(),
-                            "role": user.role,
-                            "login_identifier": getattr(user, "_login_identifier", build_login_identifier(user)),
-                            "temporary_password": getattr(user, "_temporary_password", ""),
-                            "delivery_channel": getattr(user, "_credentials_delivery", "manual"),
-                        },
+                        "credentials": _build_credentials_payload(user),
                     }
                 )
 
