@@ -21,7 +21,7 @@ def env_list(name, default=None):
 # ==============================
 # SEGURIDAD
 # ==============================
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-kjjoj+*2ro8wmv)*@=bpahju2i%avd)dyq0+6btr9fn8+ah5@*')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'change-me-local-secret-key')
 DEBUG = env_bool('DJANGO_DEBUG', True)
 ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', ['localhost', '127.0.0.1'])
 for required_host in ('healthcheck.railway.app', '.up.railway.app', '.railway.app'):
@@ -112,7 +112,7 @@ else:
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': os.getenv('DB_NAME', 'gimnasio'),
             'USER': os.getenv('DB_USER', 'postgres'),
-            'PASSWORD': os.getenv('DB_PASSWORD', 'cafune123'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'localhost'),
             'PORT': os.getenv('DB_PORT', '5434'),
         }
@@ -230,8 +230,8 @@ EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
 EMAIL_USE_SSL = env_bool('EMAIL_USE_SSL', False)
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'branfer60@gmail.com')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'bnla xiox mgzh wjue').replace(' ', '')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 LANDING_CONTACT_EMAIL = os.getenv('LANDING_CONTACT_EMAIL', DEFAULT_FROM_EMAIL)
