@@ -13,6 +13,23 @@ logger = logging.getLogger(__name__)
 VALID_RH_VALUES = {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"}
 
 
+def build_login_identifier(user):
+    return user.cedula if user.role == "STUDENT" else user.email
+
+
+def build_placeholder_student_email(cedula: str) -> str:
+    normalized_cedula = "".join(char for char in str(cedula or "") if char.isdigit()) or "sin-cedula"
+    base_email = f"estudiante-{normalized_cedula}@sin-correo.local"
+    candidate = base_email
+    counter = 2
+
+    while User.objects.filter(email__iexact=candidate).exists():
+        candidate = f"estudiante-{normalized_cedula}-{counter}@sin-correo.local"
+        counter += 1
+
+    return candidate
+
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -23,6 +40,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        identifier = (attrs.get(self.username_field) or "").strip()
+        if identifier and "@" not in identifier:
+            student_user = User.objects.filter(role="STUDENT", cedula=identifier).first()
+            if student_user:
+                attrs[self.username_field] = student_user.email
+
         data = super().validate(attrs)
         user = self.user
         request = self.context.get("request")
@@ -44,6 +67,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "avatar_url": user.get_avatar_url(request),
             "avatar_style": user.avatar_style,
             "avatar_seed": user.get_avatar_seed(),
+            "login_identifier": build_login_identifier(user),
         }
         return data
 
@@ -90,12 +114,14 @@ class UserDocumentSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=False, allow_blank=True)
     student_profile = StudentProfileSerializer(read_only=True)
     teacher_profile = TeacherProfileSerializer(read_only=True)
     documents = UserDocumentSerializer(read_only=True, many=True)
     photo_url = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
     course_names = serializers.SerializerMethodField()
+    login_identifier = serializers.SerializerMethodField()
 
     grado = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_nombre = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -126,6 +152,7 @@ class UserSerializer(serializers.ModelSerializer):
             'avatar_seed',
             'is_active',
             'must_change_password',
+            'login_identifier',
             'password',
             'course_names',
             'student_profile',
@@ -156,6 +183,9 @@ class UserSerializer(serializers.ModelSerializer):
         if obj.role == "TEACHER":
             return list(obj.cursos_asignados.order_by("nombre").values_list("nombre", flat=True))
         return []
+
+    def get_login_identifier(self, obj):
+        return build_login_identifier(obj)
 
     def validate_password(self, value):
         if value:
@@ -201,10 +231,16 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         email = attrs.get("email")
-        if email and "@" not in email:
-            raise serializers.ValidationError({"email": "Ingresa un correo valido con arroba."})
-
         role = attrs.get("role", getattr(self.instance, "role", None))
+        current_email = getattr(self.instance, "email", "")
+
+        if role != "STUDENT":
+            effective_email = str(email or current_email or "").strip()
+            if not effective_email:
+                raise serializers.ValidationError({"email": "El correo es obligatorio para este usuario."})
+            if "@" not in effective_email:
+                raise serializers.ValidationError({"email": "Ingresa un correo valido con arroba."})
+
         if role == "STUDENT":
             student_profile = getattr(self.instance, "student_profile", None)
             required_fields = {
@@ -236,6 +272,9 @@ class UserSerializer(serializers.ModelSerializer):
         especialidad = validated_data.pop('especialidad', None)
         titulo = validated_data.pop('titulo', None)
 
+        if role == "STUDENT" and not str(validated_data.get("email") or "").strip():
+            validated_data["email"] = build_placeholder_student_email(validated_data.get("cedula"))
+
         temporary_password = generate_temporary_password()
 
         with transaction.atomic():
@@ -261,11 +300,16 @@ class UserSerializer(serializers.ModelSerializer):
                     titulo=titulo or "",
                 )
 
-            try:
-                send_welcome_credentials_email(user, temporary_password)
-            except Exception as exc:
-                logger.exception("No se pudo enviar el correo de bienvenida para %s", user.email)
-                user._welcome_email_error = str(exc)
+            if role != "STUDENT":
+                try:
+                    send_welcome_credentials_email(user, temporary_password)
+                except Exception as exc:
+                    logger.exception("No se pudo enviar el correo de bienvenida para %s", user.email)
+                    user._welcome_email_error = str(exc)
+
+        user._temporary_password = temporary_password
+        user._login_identifier = build_login_identifier(user)
+        user._credentials_delivery = "manual" if role == "STUDENT" else "email"
 
         return user
 

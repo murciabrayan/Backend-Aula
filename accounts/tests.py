@@ -30,7 +30,6 @@ class UserSerializerTests(TestCase):
     def test_creates_student_profile_for_student_user(self, mocked_email):
         serializer = UserSerializer(
             data={
-                "email": "estudiante@example.com",
                 "cedula": "100200300",
                 "first_name": "Ana",
                 "last_name": "Diaz",
@@ -50,13 +49,13 @@ class UserSerializerTests(TestCase):
         self.assertTrue(user.must_change_password)
         self.assertEqual(user.rh, "O+")
         self.assertTrue(StudentProfile.objects.filter(user=user, grado="Quinto").exists())
-        mocked_email.assert_called_once()
+        self.assertEqual(user.email, "estudiante-100200300@sin-correo.local")
+        mocked_email.assert_not_called()
 
     @patch("accounts.serializers.send_welcome_credentials_email")
     def test_creates_student_without_grade_for_later_course_assignment(self, mocked_email):
         serializer = UserSerializer(
             data={
-                "email": "sin-grado@example.com",
                 "cedula": "300400500",
                 "first_name": "Juan",
                 "last_name": "Perez",
@@ -74,7 +73,8 @@ class UserSerializerTests(TestCase):
 
         student_profile = StudentProfile.objects.get(user=user)
         self.assertEqual(student_profile.grado, "")
-        mocked_email.assert_called_once()
+        self.assertEqual(user.email, "estudiante-300400500@sin-correo.local")
+        mocked_email.assert_not_called()
 
     @patch("accounts.serializers.send_welcome_credentials_email")
     def test_creates_teacher_profile_for_teacher_user(self, mocked_email):
@@ -101,7 +101,6 @@ class UserSerializerTests(TestCase):
     def test_rejects_invalid_student_contact_data(self):
         serializer = UserSerializer(
             data={
-                "email": "bad@example.com",
                 "cedula": "ABC",
                 "direccion": "",
                 "rh": "ZZ",
@@ -148,7 +147,7 @@ class UserSerializerTests(TestCase):
         self.assertEqual(student_profile.acudiente_nombre, "Laura Rios")
         self.assertEqual(student_profile.acudiente_cedula, "1234567890")
         self.assertEqual(student_profile.acudiente_telefono, "3211234567")
-        mocked_email.assert_called_once()
+        mocked_email.assert_not_called()
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -175,6 +174,28 @@ class AuthenticationApiTests(APITestCase):
         self.assertIn("access", response.data)
         self.assertIn("refresh", response.data)
         self.assertEqual(response.data["user"]["role"], "ADMIN")
+
+    def test_student_can_login_with_cedula(self):
+        User.objects.create_user(
+            email="estudiante-login@example.com",
+            cedula="1234567890",
+            password="Clave123!",
+            role="STUDENT",
+            first_name="Sara",
+            last_name="Lopez",
+            direccion="Calle 9",
+            rh="A+",
+        )
+
+        response = self.client.post(
+            "/api/token/",
+            {"email": "1234567890", "password": "Clave123!"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["user"]["role"], "STUDENT")
+        self.assertEqual(response.data["user"]["login_identifier"], "1234567890")
 
 
 class ProfileApiTests(APITestCase):

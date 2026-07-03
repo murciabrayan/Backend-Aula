@@ -112,22 +112,22 @@ GOOGLE_CLIENT_ID=tu_google_client_id.apps.googleusercontent.com
 ### Variables importantes en producción
 
 ```env
-DJANGO_SECRET_KEY=...
+DJANGO_SECRET_KEY=tu_clave_secreta
 DJANGO_DEBUG=False
-DJANGO_ALLOWED_HOSTS=proyecto-aula-backend.onrender.com,www.gimnasioloscerros.com,gimnasioloscerros.com
+DJANGO_ALLOWED_HOSTS=tu-backend.onrender.com,www.tu-dominio.com,tu-dominio.com
 
-DATABASE_URL=postgres://...
+DATABASE_URL=postgres://usuario:clave@host:5432/base_de_datos
 
-FRONTEND_URL=https://www.gimnasioloscerros.com
-CORS_ALLOWED_ORIGINS=https://www.gimnasioloscerros.com,https://gimnasioloscerros.com
-CSRF_TRUSTED_ORIGINS=https://www.gimnasioloscerros.com,https://gimnasioloscerros.com
+FRONTEND_URL=https://www.tu-dominio.com
+CORS_ALLOWED_ORIGINS=https://www.tu-dominio.com,https://tu-dominio.com
+CSRF_TRUSTED_ORIGINS=https://www.tu-dominio.com,https://tu-dominio.com
 
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_HOST_USER=correo_institucional@gmail.com
-EMAIL_HOST_PASSWORD=clave_de_aplicacion
+EMAIL_HOST_USER=tu_correo_institucional@gmail.com
+EMAIL_HOST_PASSWORD=tu_clave_de_aplicacion
 
-LANDING_CONTACT_EMAIL=correo_institucional@gmail.com
+LANDING_CONTACT_EMAIL=tu_correo_institucional@gmail.com
 
 DRF_THROTTLE_ANON=10000/min
 DRF_THROTTLE_USER=10000/min
@@ -270,13 +270,13 @@ La lógica de producción utiliza migraciones, `gunicorn` y el settings de produ
 Backend desplegado en:
 
 ```text
-https://proyecto-aula-backend.onrender.com
+https://tu-backend.onrender.com
 ```
 
 Frontend conectado:
 
 ```text
-https://www.gimnasioloscerros.com
+https://www.tu-dominio.com
 ```
 
 ## Archivos y persistencia

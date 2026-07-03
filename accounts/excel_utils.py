@@ -22,7 +22,6 @@ TEMPLATE_SHEETS = [
     {
         "name": "Estudiantes",
         "headers": [
-            "email",
             "cedula",
             "first_name",
             "last_name",
@@ -31,7 +30,6 @@ TEMPLATE_SHEETS = [
             "acudiente_nombre",
             "acudiente_cedula",
             "acudiente_telefono",
-            "acudiente_email",
         ],
         "sample": [],
     },

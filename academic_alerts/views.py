@@ -34,7 +34,7 @@ ABSENCE_CRITICAL_THRESHOLD = 5
 MISSING_ASSIGNMENTS_WARNING_THRESHOLD = 2
 MISSING_ASSIGNMENTS_CRITICAL_THRESHOLD = 4
 
-FOLLOW_UP_DELAY_DAYS = 7
+FOLLOW_UP_DELAY_DAYS = 0
 
 FINAL_STATUSES = {"RESOLVED_POSITIVE", "RESOLVED_NEGATIVE"}
 TEACHER_PENDING_STATUSES = {"TEACHER_INITIAL_PENDING", "TEACHER_FINAL_PENDING"}
@@ -55,6 +55,14 @@ def calculate_next_follow_up_due_at(base_datetime=None):
         datetime.combine(due_date, time.min),
         timezone.get_current_timezone(),
     )
+
+
+def get_follow_up_delay_message():
+    if FOLLOW_UP_DELAY_DAYS <= 0:
+        return "de inmediato"
+    if FOLLOW_UP_DELAY_DAYS == 1:
+        return "en 1 día"
+    return f"en {FOLLOW_UP_DELAY_DAYS} días"
 
 
 def avg_or_none(values):
@@ -463,7 +471,11 @@ def trigger_scheduled_follow_up_requests():
             alert,
             event_type="SECOND_FOLLOW_UP_REQUESTED",
             title="Segunda revisión solicitada",
-            notes="Han pasado siete días desde la aprobación del seguimiento inicial.",
+            notes=(
+                "La segunda revisión fue habilitada de inmediato tras la aprobación del seguimiento inicial."
+                if FOLLOW_UP_DELAY_DAYS <= 0
+                else f"Han pasado {FOLLOW_UP_DELAY_DAYS} días desde la aprobación del seguimiento inicial."
+            ),
             visible_to_student=False,
             metadata={"requested_at": now.isoformat()},
         )
@@ -640,13 +652,17 @@ class AcademicAlertViewSet(viewsets.ReadOnlyModelViewSet):
         notes = serializer.validated_data.get("notes", "")
 
         if decision == "APPROVE":
-            alert.status = "MONITORING"
-            alert.next_follow_up_due_at = calculate_next_follow_up_due_at()
+            if FOLLOW_UP_DELAY_DAYS <= 0:
+                alert.status = "TEACHER_FINAL_PENDING"
+                alert.next_follow_up_due_at = None
+            else:
+                alert.status = "MONITORING"
+                alert.next_follow_up_due_at = calculate_next_follow_up_due_at()
             event_type = "ADMIN_REVIEW_APPROVED"
             event_title = "Seguimiento inicial aprobado"
             teacher_message = (
                 f"El seguimiento inicial de la alerta de {alert.student.first_name} {alert.student.last_name} del curso {alert.course.nombre} "
-                "fue aprobado. En siete días se solicitará una nueva verificación."
+                f"fue aprobado. Se solicitará una nueva verificación {get_follow_up_delay_message()}."
             )
         else:
             alert.status = "TEACHER_INITIAL_PENDING"

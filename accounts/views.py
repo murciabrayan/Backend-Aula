@@ -28,6 +28,7 @@ from .serializers import (
     TeacherProfileSerializer,
     UserDocumentSerializer,
     UserSerializer,
+    build_login_identifier,
 )
 
 User = get_user_model()
@@ -52,7 +53,6 @@ def _normalize_bulk_user_row(*, row, role):
                 "acudiente_nombre": (row.get("acudiente_nombre") or "").strip(),
                 "acudiente_cedula": str(row.get("acudiente_cedula") or "").strip(),
                 "acudiente_telefono": str(row.get("acudiente_telefono") or "").strip(),
-                "acudiente_email": (row.get("acudiente_email") or "").strip(),
             }
         )
     elif role == "TEACHER":
@@ -68,11 +68,12 @@ def _normalize_bulk_user_row(*, row, role):
 
 def _serialize_bulk_row_result(*, sheet_name, row_number, payload, serializer):
     full_name = f"{payload.get('first_name', '').strip()} {payload.get('last_name', '').strip()}".strip()
+    display_identifier = payload.get("cedula") if payload.get("role") == "STUDENT" else payload.get("email")
     return {
         "sheet": sheet_name,
         "row": row_number,
         "role": payload.get("role"),
-        "name": full_name or payload.get("email") or f"Fila {row_number}",
+        "name": full_name or display_identifier or f"Fila {row_number}",
         "email": payload.get("email") or "",
         "cedula": payload.get("cedula") or "",
         "status": "valid" if serializer.is_valid() else "error",
@@ -121,6 +122,15 @@ class UserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         created_user = getattr(self, "instance", None)
+        temporary_password = getattr(created_user, "_temporary_password", None)
+        if temporary_password:
+            response.data["credentials"] = {
+                "full_name": f"{created_user.first_name} {created_user.last_name}".strip(),
+                "role": created_user.role,
+                "login_identifier": getattr(created_user, "_login_identifier", build_login_identifier(created_user)),
+                "temporary_password": temporary_password,
+                "delivery_channel": getattr(created_user, "_credentials_delivery", "manual"),
+            }
         warning = getattr(created_user, "_welcome_email_error", None)
         if warning:
             response.data["warning"] = (
@@ -270,6 +280,7 @@ class UserViewSet(viewsets.ModelViewSet):
                             "sheet": sheet_name,
                             "row": row_number,
                             "name": f"{payload.get('first_name', '').strip()} {payload.get('last_name', '').strip()}".strip()
+                            or payload.get("cedula")
                             or payload.get("email")
                             or f"Fila {row_number}",
                             "email": payload.get("email") or "",
@@ -297,6 +308,13 @@ class UserViewSet(viewsets.ModelViewSet):
                         "email": user.email,
                         "role": user.role,
                         "name": f"{user.first_name} {user.last_name}".strip(),
+                        "credentials": {
+                            "full_name": f"{user.first_name} {user.last_name}".strip(),
+                            "role": user.role,
+                            "login_identifier": getattr(user, "_login_identifier", build_login_identifier(user)),
+                            "temporary_password": getattr(user, "_temporary_password", ""),
+                            "delivery_channel": getattr(user, "_credentials_delivery", "manual"),
+                        },
                     }
                 )
 
@@ -460,4 +478,3 @@ def complete_initial_password(request):
         },
         status=status.HTTP_200_OK,
     )
-
