@@ -26,6 +26,8 @@ jobs:
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          # Quitar espacios/saltos de linea que puedan haber quedado al pegar el secreto
+          DB_URL="$(printf '%s' "$DB_URL" | tr -d '[:space:]')"
           STAMP=$(date +%Y-%m-%d_%H%M)
           echo "STAMP=$STAMP" >> "$GITHUB_ENV"
           mkdir -p out
@@ -38,6 +40,7 @@ jobs:
         env:
           PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
+          export PASSPHRASE="$(printf '%s' "$PASSPHRASE" | tr -d '\r\n')"
           openssl enc -aes-256-cbc -pbkdf2 -salt \
             -in "out/gimnasio_${STAMP}.dump" \
             -out "out/gimnasio_${STAMP}.dump.enc" \
