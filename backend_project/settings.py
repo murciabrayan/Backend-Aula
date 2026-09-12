@@ -1,8 +1,16 @@
 from pathlib import Path
+from datetime import timedelta
 import os
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Carga variables desde backend/.env si python-dotenv esta disponible.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / '.env')
+except ImportError:
+    pass
 
 
 def env_bool(name, default=False):
@@ -218,7 +226,22 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': os.getenv('DRF_THROTTLE_ANON', '30/min'),
         'user': os.getenv('DRF_THROTTLE_USER', '120/min'),
+        # Limites fijos para endpoints sensibles (no se relajan por env).
+        'login': os.getenv('DRF_THROTTLE_LOGIN', '10/min'),
+        'password_reset': os.getenv('DRF_THROTTLE_PASSWORD_RESET', '5/min'),
     },
+}
+
+# ==============================
+# JWT (SimpleJWT)
+# ==============================
+# Config explicita de tiempos de vida de los tokens. No se activa rotacion ni
+# blacklist para no romper el flujo actual del frontend; la revocacion completa
+# (blacklist) requiere coordinar con el frontend y se puede habilitar despues.
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.getenv('JWT_ACCESS_MIN', '15'))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_DAYS', '1'))),
+    'UPDATE_LAST_LOGIN': True,
 }
 
 # ==============================

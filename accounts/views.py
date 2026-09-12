@@ -11,8 +11,9 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView
+
+from .throttles import LoginRateThrottle
 
 from .excel_utils import (
     build_bulk_user_template_workbook,
@@ -95,7 +96,7 @@ def _build_credentials_payload(user, temporary_password=None):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
-    throttle_classes = [AnonRateThrottle]
+    throttle_classes = [LoginRateThrottle]
 
 
 class UserViewSet(viewsets.ModelViewSet):

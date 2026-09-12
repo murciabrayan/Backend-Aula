@@ -10,11 +10,10 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
-
 from backend_project.email_utils import build_html_email
 
 from .password_rules import validate_password_strength
+from .throttles import PasswordResetRateThrottle
 
 User = get_user_model()
 
@@ -35,7 +34,7 @@ def _parse_request_body(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
-@throttle_classes([AnonRateThrottle])
+@throttle_classes([PasswordResetRateThrottle])
 def forgot_password(request):
     data = _parse_request_body(request)
     email = (data.get("email") or "").strip()
@@ -81,7 +80,7 @@ def forgot_password(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
-@throttle_classes([AnonRateThrottle])
+@throttle_classes([PasswordResetRateThrottle])
 def reset_password(request, uidb64, token):
     data = _parse_request_body(request)
     new_password = data.get("password")

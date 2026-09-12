@@ -6,7 +6,6 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.urls import re_path
-from django import get_version
 
 # Importaciones
 from accounts.views_profile import user_profile, change_password
@@ -27,8 +26,6 @@ from accounts.views_password_reset import (
     reset_password,
 )
 from accounts.views_google import google_login
-from accounts.models import User
-from accounts.serializers import UserSerializer
 
 from courses.views import CourseViewSet, SubjectViewSet, AreaViewSet
 
@@ -43,30 +40,13 @@ router.register(r'areas', AreaViewSet)
 
 
 def root_status(request):
-    response = {
+    # Endpoint publico de salud. NO debe exponer datos de usuarios ni
+    # detalles internos (version, errores de BD) por privacidad/seguridad.
+    return JsonResponse({
         'status': 'ok',
         'service': 'proyecto-aula-backend',
         'message': 'Backend activo',
-        'django_version': get_version(),
-    }
-    try:
-        response['db'] = 'ok'
-        response['user_count'] = User.objects.count()
-    except Exception as exc:
-        response['db'] = 'error'
-        response['db_error'] = str(exc)
-        return JsonResponse(response)
-
-    try:
-        response['users_probe'] = UserSerializer(
-            User.objects.all()[:3],
-            many=True,
-            context={'request': request},
-        ).data
-    except Exception as exc:
-        response['users_probe'] = 'error'
-        response['users_probe_error'] = str(exc)
-    return JsonResponse(response)
+    })
 
 
 def serve_media_file(request, path):
