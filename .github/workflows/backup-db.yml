@@ -1,0 +1,61 @@
+name: Respaldo BD Supabase
+
+# Respaldo automatico de la base de datos de produccion (Supabase).
+# Corre EN LA NUBE de GitHub, sin depender de que ningun PC este encendido.
+# El respaldo se CIFRA antes de guardarse (el repo es publico).
+
+on:
+  schedule:
+    - cron: '0 5 * * *'      # 00:00 hora Colombia (05:00 UTC), todos los dias
+  workflow_dispatch: {}       # permite ejecutarlo a mano desde la pestana Actions
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      RCLONE_CONF: ${{ secrets.RCLONE_CONF }}   # token de Google Drive (opcional)
+    steps:
+      - name: Instalar cliente PostgreSQL 17
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Generar respaldo (pg_dump)
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          STAMP=$(date +%Y-%m-%d_%H%M)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          mkdir -p out
+          /usr/lib/postgresql/17/bin/pg_dump "$DB_URL" \
+            --format=custom --no-owner --no-privileges \
+            -f "out/gimnasio_${STAMP}.dump"
+          ls -lh out/
+
+      - name: Cifrar respaldo (AES-256)
+        env:
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -in "out/gimnasio_${STAMP}.dump" \
+            -out "out/gimnasio_${STAMP}.dump.enc" \
+            -pass env:PASSPHRASE
+          rm -f "out/gimnasio_${STAMP}.dump"
+          ls -lh out/
+
+      - name: Guardar en GitHub (artifact cifrado)
+        uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ env.STAMP }}
+          path: out/*.enc
+          retention-days: 90
+
+      - name: Guardar en Google Drive (si esta configurado)
+        if: ${{ env.RCLONE_CONF != '' }}
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          mkdir -p ~/.config/rclone
+          printf '%s' "$RCLONE_CONF" | base64 -d > ~/.config/rclone/rclone.conf
+          rclone copy out/ gdrive:Backups-Gimnasio --include "*.enc" --log-level INFO
