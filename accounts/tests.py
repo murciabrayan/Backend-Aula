@@ -330,3 +330,80 @@ class SecondGuardianTests(TestCase):
         )
         self.assertFalse(serializer.is_valid())
         self.assertIn("acudiente_parentesco", serializer.errors)
+
+
+class BulkUploadFieldsTests(TestCase):
+    """La carga masiva por Excel debe soportar parentesco, 2do acudiente y telefono docente."""
+
+    def test_template_includes_new_columns(self):
+        from accounts.excel_utils import TEMPLATE_SHEETS
+
+        student_headers = TEMPLATE_SHEETS[0]["headers"]
+        teacher_headers = TEMPLATE_SHEETS[1]["headers"]
+
+        for column in (
+            "acudiente_parentesco",
+            "acudiente2_nombre",
+            "acudiente2_cedula",
+            "acudiente2_telefono",
+            "acudiente2_parentesco",
+        ):
+            self.assertIn(column, student_headers)
+        self.assertIn("telefono", teacher_headers)
+
+    def test_student_row_with_accented_parentesco_is_valid(self):
+        from accounts.views import _normalize_bulk_user_row
+
+        row = {
+            "cedula": "910001",
+            "first_name": "Ana",
+            "last_name": "Lopez",
+            "direccion": "Calle 1",
+            "rh": "O+",
+            "acudiente_nombre": "Maria",
+            "acudiente_cedula": "910002",
+            "acudiente_telefono": "3001112233",
+            "acudiente_parentesco": "Tía",
+        }
+        payload = _normalize_bulk_user_row(row=row, role="STUDENT")
+        self.assertEqual(payload["acudiente_parentesco"], "TIA")
+        serializer = UserSerializer(data=payload)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_student_row_without_second_guardian_is_valid(self):
+        from accounts.views import _normalize_bulk_user_row
+
+        row = {
+            "cedula": "910003",
+            "first_name": "Luis",
+            "last_name": "Paz",
+            "direccion": "Calle 2",
+            "rh": "A+",
+            "acudiente_nombre": "Rosa",
+            "acudiente_cedula": "910004",
+            "acudiente_telefono": "3001112244",
+            "acudiente_parentesco": "madre",
+        }
+        payload = _normalize_bulk_user_row(row=row, role="STUDENT")
+        self.assertNotIn("acudiente2_nombre", payload)
+        serializer = UserSerializer(data=payload)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_teacher_row_includes_phone(self):
+        from accounts.views import _normalize_bulk_user_row
+
+        row = {
+            "email": "docente-bulk@example.com",
+            "cedula": "910005",
+            "first_name": "Sara",
+            "last_name": "Diaz",
+            "direccion": "Calle 3",
+            "rh": "B+",
+            "especialidad": "Matematicas",
+            "titulo": "Licenciada",
+            "telefono": "3009998877",
+        }
+        payload = _normalize_bulk_user_row(row=row, role="TEACHER")
+        self.assertEqual(payload["telefono"], "3009998877")
+        serializer = UserSerializer(data=payload)
+        self.assertTrue(serializer.is_valid(), serializer.errors)

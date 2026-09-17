@@ -18,6 +18,20 @@ ET.register_namespace("", NAMESPACE_MAIN)
 ET.register_namespace("r", NAMESPACE_REL)
 
 
+# Valores aceptados en las columnas de parentesco (se admiten con o sin tildes
+# y en minusculas: "Tío", "tio", "TIO").
+PARENTESCO_VALUES = [
+    "MADRE",
+    "PADRE",
+    "TIO",
+    "TIA",
+    "ABUELO",
+    "ABUELA",
+    "HERMANO",
+    "HERMANA",
+    "CONOCIDO",
+]
+
 TEMPLATE_SHEETS = [
     {
         "name": "Estudiantes",
@@ -30,6 +44,11 @@ TEMPLATE_SHEETS = [
             "acudiente_nombre",
             "acudiente_cedula",
             "acudiente_telefono",
+            "acudiente_parentesco",
+            "acudiente2_nombre",
+            "acudiente2_cedula",
+            "acudiente2_telefono",
+            "acudiente2_parentesco",
         ],
         "sample": [],
     },
@@ -44,6 +63,7 @@ TEMPLATE_SHEETS = [
             "rh",
             "especialidad",
             "titulo",
+            "telefono",
         ],
         "sample": [],
     },

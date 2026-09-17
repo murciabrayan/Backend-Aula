@@ -7,6 +7,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .file_validators import validate_image_file, validate_pdf_file
 from .models import StudentProfile, TeacherProfile, User, UserDocument
 from .onboarding import generate_temporary_password, send_welcome_credentials_email
+from .parentesco import normalize_parentesco
 from .password_rules import validate_password_strength
 
 logger = logging.getLogger(__name__)
@@ -262,8 +263,8 @@ class UserSerializer(serializers.ModelSerializer):
     def _validate_parentesco(value):
         if not value:
             return value
+        normalized = normalize_parentesco(value)
         valid_codes = {code for code, _label in StudentProfile.PARENTESCO_CHOICES}
-        normalized = str(value).strip().upper()
         if normalized not in valid_codes:
             raise serializers.ValidationError("Selecciona un parentesco valido.")
         return normalized

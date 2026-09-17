@@ -23,6 +23,7 @@ from .excel_utils import (
 from .models import StudentProfile, TeacherProfile, User, UserDocument
 from .permissions import IsAdminRole
 from .onboarding import generate_temporary_password
+from .parentesco import normalize_parentesco
 from .password_rules import validate_password_strength
 from .serializers import (
     CustomTokenObtainPairSerializer,
@@ -55,13 +56,26 @@ def _normalize_bulk_user_row(*, row, role):
                 "acudiente_nombre": (row.get("acudiente_nombre") or "").strip(),
                 "acudiente_cedula": str(row.get("acudiente_cedula") or "").strip(),
                 "acudiente_telefono": str(row.get("acudiente_telefono") or "").strip(),
+                "acudiente_parentesco": normalize_parentesco(row.get("acudiente_parentesco")),
             }
         )
+
+        # Segundo acudiente: opcional. Solo se envia si la fila trae algun dato,
+        # asi las filas con un solo acudiente siguen siendo validas.
+        acudiente2 = {
+            "acudiente2_nombre": (row.get("acudiente2_nombre") or "").strip(),
+            "acudiente2_cedula": str(row.get("acudiente2_cedula") or "").strip(),
+            "acudiente2_telefono": str(row.get("acudiente2_telefono") or "").strip(),
+            "acudiente2_parentesco": normalize_parentesco(row.get("acudiente2_parentesco")),
+        }
+        if any(acudiente2.values()):
+            payload.update(acudiente2)
     elif role == "TEACHER":
         payload.update(
             {
                 "especialidad": (row.get("especialidad") or "").strip(),
                 "titulo": (row.get("titulo") or "").strip(),
+                "telefono": str(row.get("telefono") or "").strip(),
             }
         )
 
