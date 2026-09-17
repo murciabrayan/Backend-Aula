@@ -53,6 +53,12 @@ def user_profile(request):
                         "acudiente_cedula": student.acudiente_cedula,
                         "acudiente_telefono": student.acudiente_telefono,
                         "acudiente_email": student.acudiente_email,
+                        "acudiente_parentesco": student.acudiente_parentesco,
+                        "acudiente2_nombre": student.acudiente2_nombre,
+                        "acudiente2_cedula": student.acudiente2_cedula,
+                        "acudiente2_telefono": student.acudiente2_telefono,
+                        "acudiente2_email": student.acudiente2_email,
+                        "acudiente2_parentesco": student.acudiente2_parentesco,
                     }
                 )
         elif user.role == "TEACHER":
@@ -62,6 +68,7 @@ def user_profile(request):
                     {
                         "especialidad": teacher.especialidad,
                         "titulo": teacher.titulo,
+                        "telefono": teacher.telefono,
                     }
                 )
         elif user.role == "ADMIN":
@@ -114,6 +121,12 @@ def user_profile(request):
             "acudiente_cedula",
             "acudiente_telefono",
             "acudiente_email",
+            "acudiente_parentesco",
+            "acudiente2_nombre",
+            "acudiente2_cedula",
+            "acudiente2_telefono",
+            "acudiente2_email",
+            "acudiente2_parentesco",
         ):
             if field in request.data:
                 defaults[field] = request.data.get(field, "")
@@ -127,7 +140,7 @@ def user_profile(request):
             defaults={"especialidad": "", "titulo": ""},
         )
         defaults = {}
-        for field in ("especialidad", "titulo"):
+        for field in ("especialidad", "titulo", "telefono"):
             if field in request.data:
                 defaults[field] = request.data.get(field, "")
         if defaults:

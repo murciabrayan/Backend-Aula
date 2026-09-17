@@ -39,26 +39,78 @@ POLICY_PARAGRAPHS = [
 ]
 
 
-def get_data_policy_signer_for_user(user):
-    if user.role == "STUDENT":
-        student_profile = StudentProfile.objects.filter(user=user).first()
-        signer_name = (student_profile.acudiente_nombre if student_profile else "") or ""
-        signer_document = (student_profile.acudiente_cedula if student_profile else "") or ""
-        signer_role = "Acudiente"
-    else:
-        signer_name = f"{user.first_name} {user.last_name}".strip() or user.email
-        signer_document = user.cedula or ""
-        signer_role = "Titular"
+_PARENTESCO_LABELS = dict(StudentProfile.PARENTESCO_CHOICES)
 
-    return {
-        "name": signer_name.strip(),
-        "document": signer_document.strip(),
-        "role": signer_role,
-    }
+
+def get_available_signers_for_user(user):
+    """Lista de posibles firmantes de la autorización.
+
+    - Estudiante: sus acudientes registrados (1 obligatorio + 1 opcional).
+    - Otros roles: el propio titular.
+    Cada firmante incluye su indice para que el frontend pueda elegir.
+    """
+    if user.role != "STUDENT":
+        return [
+            {
+                "index": 0,
+                "name": (f"{user.first_name} {user.last_name}".strip() or user.email).strip(),
+                "document": (user.cedula or "").strip(),
+                "role": "Titular",
+                "parentesco": "",
+                "parentesco_label": "",
+            }
+        ]
+
+    student_profile = StudentProfile.objects.filter(user=user).first()
+    signers = []
+    if student_profile:
+        acudientes = [
+            (
+                0,
+                student_profile.acudiente_nombre,
+                student_profile.acudiente_cedula,
+                student_profile.acudiente_parentesco,
+            ),
+            (
+                1,
+                student_profile.acudiente2_nombre,
+                student_profile.acudiente2_cedula,
+                student_profile.acudiente2_parentesco,
+            ),
+        ]
+        for index, nombre, cedula, parentesco in acudientes:
+            nombre = (nombre or "").strip()
+            cedula = (cedula or "").strip()
+            # El acudiente 1 siempre se lista; el 2 solo si tiene datos.
+            if index == 1 and not nombre and not cedula:
+                continue
+            signers.append(
+                {
+                    "index": index,
+                    "name": nombre,
+                    "document": cedula,
+                    "role": "Acudiente",
+                    "parentesco": parentesco or "",
+                    "parentesco_label": _PARENTESCO_LABELS.get(parentesco or "", ""),
+                }
+            )
+    return signers
+
+
+def get_data_policy_signer_for_user(user, signer_index=0):
+    signers = get_available_signers_for_user(user)
+    if not signers:
+        return {"name": "", "document": "", "role": "Acudiente", "parentesco": "", "parentesco_label": ""}
+
+    chosen = next((s for s in signers if s["index"] == signer_index), signers[0])
+    return chosen
 
 
 def get_data_policy_payload_for_user(user):
-    signer = get_data_policy_signer_for_user(user)
+    signers = get_available_signers_for_user(user)
+    signer = signers[0] if signers else {
+        "name": "", "document": "", "role": "Acudiente", "parentesco": "", "parentesco_label": "",
+    }
     return {
         "version": DATA_POLICY_VERSION,
         "title": DATA_POLICY_TITLE,
@@ -67,13 +119,15 @@ def get_data_policy_payload_for_user(user):
         "signer_name": signer["name"],
         "signer_document": signer["document"],
         "signer_role": signer["role"],
+        # Lista para el desplegable de "quien firma" (frontend).
+        "available_signers": signers,
         "accepted": user.has_accepted_data_policy,
         "accepted_at": user.data_policy_accepted_at,
     }
 
 
-def validate_signer_data(user):
-    signer = get_data_policy_signer_for_user(user)
+def validate_signer_data(user, signer_index=0):
+    signer = get_data_policy_signer_for_user(user, signer_index)
     if not signer["name"] or not signer["document"]:
         if user.role == "STUDENT":
             raise ValueError(

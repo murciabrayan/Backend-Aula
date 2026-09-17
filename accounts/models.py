@@ -95,16 +95,43 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 # -------- PROFILES --------
 class StudentProfile(models.Model):
+    # Parentesco del acudiente respecto al estudiante.
+    PARENTESCO_CHOICES = [
+        ("MADRE", "Madre"),
+        ("PADRE", "Padre"),
+        ("TIO", "Tío"),
+        ("TIA", "Tía"),
+        ("ABUELO", "Abuelo"),
+        ("ABUELA", "Abuela"),
+        ("HERMANO", "Hermano"),
+        ("HERMANA", "Hermana"),
+        ("CONOCIDO", "Conocido"),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="student_profile"
     )
     grado = models.CharField(max_length=50)  # Ej: "Quinto", "sexto"
+
+    # Acudiente 1 (obligatorio)
     acudiente_nombre = models.CharField(max_length=150)
     acudiente_cedula = models.CharField(max_length=20, blank=True, default="")
     acudiente_telefono = models.CharField(max_length=20)
     acudiente_email = models.EmailField(blank=True, null=True)
+    acudiente_parentesco = models.CharField(
+        max_length=20, choices=PARENTESCO_CHOICES, blank=True, default=""
+    )
+
+    # Acudiente 2 (opcional)
+    acudiente2_nombre = models.CharField(max_length=150, blank=True, default="")
+    acudiente2_cedula = models.CharField(max_length=20, blank=True, default="")
+    acudiente2_telefono = models.CharField(max_length=20, blank=True, default="")
+    acudiente2_email = models.EmailField(blank=True, null=True)
+    acudiente2_parentesco = models.CharField(
+        max_length=20, choices=PARENTESCO_CHOICES, blank=True, default=""
+    )
 
     def __str__(self):
         return f"Estudiante: {self.user.email} - Grado {self.grado}"
@@ -118,6 +145,7 @@ class TeacherProfile(models.Model):
     )
     especialidad = models.CharField(max_length=100)  # Ej: "Matemáticas"
     titulo = models.CharField(max_length=100, blank=True, null=True)
+    telefono = models.CharField(max_length=20, blank=True, default="")
 
     def __str__(self):
         return f"Docente: {self.user.email} - {self.especialidad}"

@@ -82,13 +82,19 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             'acudiente_cedula',
             'acudiente_telefono',
             'acudiente_email',
+            'acudiente_parentesco',
+            'acudiente2_nombre',
+            'acudiente2_cedula',
+            'acudiente2_telefono',
+            'acudiente2_email',
+            'acudiente2_parentesco',
         ]
 
 
 class TeacherProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = TeacherProfile
-        fields = ['id', 'especialidad', 'titulo']
+        fields = ['id', 'especialidad', 'titulo', 'telefono']
 
 
 class UserDocumentSerializer(serializers.ModelSerializer):
@@ -128,8 +134,15 @@ class UserSerializer(serializers.ModelSerializer):
     acudiente_cedula = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_telefono = serializers.CharField(write_only=True, required=False, allow_blank=True)
     acudiente_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    acudiente_parentesco = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    acudiente2_nombre = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    acudiente2_cedula = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    acudiente2_telefono = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    acudiente2_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    acudiente2_parentesco = serializers.CharField(write_only=True, required=False, allow_blank=True)
     especialidad = serializers.CharField(write_only=True, required=False, allow_blank=True)
     titulo = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    telefono = serializers.CharField(write_only=True, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     avatar_style = serializers.CharField(required=False, allow_blank=True)
     avatar_seed = serializers.CharField(required=False, allow_blank=True)
@@ -163,8 +176,15 @@ class UserSerializer(serializers.ModelSerializer):
             'acudiente_cedula',
             'acudiente_telefono',
             'acudiente_email',
+            'acudiente_parentesco',
+            'acudiente2_nombre',
+            'acudiente2_cedula',
+            'acudiente2_telefono',
+            'acudiente2_email',
+            'acudiente2_parentesco',
             'especialidad',
             'titulo',
+            'telefono',
         ]
         extra_kwargs = {
             "profile_photo": {"required": False},
@@ -218,6 +238,36 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("La cedula del acudiente solo puede contener numeros.")
         return value
 
+    def validate_acudiente_parentesco(self, value):
+        return self._validate_parentesco(value)
+
+    def validate_acudiente2_telefono(self, value):
+        if value and (not str(value).isdigit() or len(str(value)) != 10):
+            raise serializers.ValidationError(
+                "El telefono del segundo acudiente debe tener exactamente 10 numeros."
+            )
+        return value
+
+    def validate_acudiente2_cedula(self, value):
+        if value and not str(value).isdigit():
+            raise serializers.ValidationError(
+                "La cedula del segundo acudiente solo puede contener numeros."
+            )
+        return value
+
+    def validate_acudiente2_parentesco(self, value):
+        return self._validate_parentesco(value)
+
+    @staticmethod
+    def _validate_parentesco(value):
+        if not value:
+            return value
+        valid_codes = {code for code, _label in StudentProfile.PARENTESCO_CHOICES}
+        normalized = str(value).strip().upper()
+        if normalized not in valid_codes:
+            raise serializers.ValidationError("Selecciona un parentesco valido.")
+        return normalized
+
     def validate_direccion(self, value):
         if not value or not value.strip():
             raise serializers.ValidationError("La direccion es obligatoria.")
@@ -243,18 +293,51 @@ class UserSerializer(serializers.ModelSerializer):
 
         if role == "STUDENT":
             student_profile = getattr(self.instance, "student_profile", None)
+
+            def effective(field):
+                value = attrs.get(field)
+                if value is None and student_profile is not None:
+                    value = getattr(student_profile, field, "")
+                return str(value or "").strip()
+
+            errors = {}
+            is_create = self.instance is None
+
+            # Acudiente 1: obligatorio.
             required_fields = {
                 "acudiente_nombre": "El nombre del acudiente es obligatorio.",
                 "acudiente_cedula": "La cedula del acudiente es obligatoria.",
                 "acudiente_telefono": "El telefono del acudiente es obligatorio.",
             }
-            errors = {}
+            # El parentesco solo se exige al registrar (no romper registros previos
+            # ni actualizaciones parciales de estudiantes ya existentes).
+            if is_create:
+                required_fields["acudiente_parentesco"] = "Selecciona el parentesco del acudiente."
             for field, message in required_fields.items():
-                value = attrs.get(field)
-                if value is None and student_profile is not None:
-                    value = getattr(student_profile, field, "")
-                if not str(value or "").strip():
+                if not effective(field):
                     errors[field] = message
+
+            # Acudiente 2: opcional. Si llenan cualquiera de sus datos,
+            # se exigen nombre, cedula, telefono y parentesco.
+            acudiente2_fields = [
+                "acudiente2_nombre",
+                "acudiente2_cedula",
+                "acudiente2_telefono",
+                "acudiente2_email",
+                "acudiente2_parentesco",
+            ]
+            has_any_acudiente2 = any(effective(field) for field in acudiente2_fields)
+            if has_any_acudiente2:
+                acudiente2_required = {
+                    "acudiente2_nombre": "El nombre del segundo acudiente es obligatorio.",
+                    "acudiente2_cedula": "La cedula del segundo acudiente es obligatoria.",
+                    "acudiente2_telefono": "El telefono del segundo acudiente es obligatorio.",
+                    "acudiente2_parentesco": "Selecciona el parentesco del segundo acudiente.",
+                }
+                for field, message in acudiente2_required.items():
+                    if not effective(field):
+                        errors[field] = message
+
             if errors:
                 raise serializers.ValidationError(errors)
 
@@ -269,8 +352,15 @@ class UserSerializer(serializers.ModelSerializer):
         acudiente_cedula = validated_data.pop('acudiente_cedula', None)
         acudiente_telefono = validated_data.pop('acudiente_telefono', None)
         acudiente_email = validated_data.pop('acudiente_email', None)
+        acudiente_parentesco = validated_data.pop('acudiente_parentesco', None)
+        acudiente2_nombre = validated_data.pop('acudiente2_nombre', None)
+        acudiente2_cedula = validated_data.pop('acudiente2_cedula', None)
+        acudiente2_telefono = validated_data.pop('acudiente2_telefono', None)
+        acudiente2_email = validated_data.pop('acudiente2_email', None)
+        acudiente2_parentesco = validated_data.pop('acudiente2_parentesco', None)
         especialidad = validated_data.pop('especialidad', None)
         titulo = validated_data.pop('titulo', None)
+        telefono = validated_data.pop('telefono', None)
 
         if role == "STUDENT" and not str(validated_data.get("email") or "").strip():
             validated_data["email"] = build_placeholder_student_email(validated_data.get("cedula"))
@@ -292,12 +382,19 @@ class UserSerializer(serializers.ModelSerializer):
                     acudiente_cedula=acudiente_cedula or "",
                     acudiente_telefono=acudiente_telefono or "",
                     acudiente_email=acudiente_email or "",
+                    acudiente_parentesco=acudiente_parentesco or "",
+                    acudiente2_nombre=acudiente2_nombre or "",
+                    acudiente2_cedula=acudiente2_cedula or "",
+                    acudiente2_telefono=acudiente2_telefono or "",
+                    acudiente2_email=acudiente2_email or "",
+                    acudiente2_parentesco=acudiente2_parentesco or "",
                 )
             elif role == "TEACHER":
                 TeacherProfile.objects.create(
                     user=user,
                     especialidad=especialidad or "",
                     titulo=titulo or "",
+                    telefono=telefono or "",
                 )
 
             if role != "STUDENT":
@@ -323,8 +420,15 @@ class UserSerializer(serializers.ModelSerializer):
         acudiente_cedula = validated_data.pop('acudiente_cedula', missing)
         acudiente_telefono = validated_data.pop('acudiente_telefono', missing)
         acudiente_email = validated_data.pop('acudiente_email', missing)
+        acudiente_parentesco = validated_data.pop('acudiente_parentesco', missing)
+        acudiente2_nombre = validated_data.pop('acudiente2_nombre', missing)
+        acudiente2_cedula = validated_data.pop('acudiente2_cedula', missing)
+        acudiente2_telefono = validated_data.pop('acudiente2_telefono', missing)
+        acudiente2_email = validated_data.pop('acudiente2_email', missing)
+        acudiente2_parentesco = validated_data.pop('acudiente2_parentesco', missing)
         especialidad = validated_data.pop('especialidad', missing)
         titulo = validated_data.pop('titulo', missing)
+        telefono = validated_data.pop('telefono', missing)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -351,6 +455,12 @@ class UserSerializer(serializers.ModelSerializer):
                 'acudiente_cedula': acudiente_cedula,
                 'acudiente_telefono': acudiente_telefono,
                 'acudiente_email': acudiente_email,
+                'acudiente_parentesco': acudiente_parentesco,
+                'acudiente2_nombre': acudiente2_nombre,
+                'acudiente2_cedula': acudiente2_cedula,
+                'acudiente2_telefono': acudiente2_telefono,
+                'acudiente2_email': acudiente2_email,
+                'acudiente2_parentesco': acudiente2_parentesco,
             }
             for field, value in profile_values.items():
                 if value is not missing:
@@ -372,6 +482,8 @@ class UserSerializer(serializers.ModelSerializer):
                 profile_updates['especialidad'] = especialidad or ""
             if titulo is not missing:
                 profile_updates['titulo'] = titulo or ""
+            if telefono is not missing:
+                profile_updates['telefono'] = telefono or ""
             if profile_updates:
                 for field, value in profile_updates.items():
                     setattr(teacher, field, value)

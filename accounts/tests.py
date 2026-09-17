@@ -40,6 +40,7 @@ class UserSerializerTests(TestCase):
                 "acudiente_nombre": "Maria Diaz",
                 "acudiente_cedula": "900800700",
                 "acudiente_telefono": "3001234567",
+                "acudiente_parentesco": "MADRE",
             }
         )
 
@@ -65,6 +66,7 @@ class UserSerializerTests(TestCase):
                 "acudiente_nombre": "Fernando Perez",
                 "acudiente_cedula": "1239874",
                 "acudiente_telefono": "3123456789",
+                "acudiente_parentesco": "PADRE",
             }
         )
 
@@ -130,6 +132,7 @@ class UserSerializerTests(TestCase):
                 "acudiente_nombre": "Laura Rios",
                 "acudiente_cedula": "1234567890",
                 "acudiente_telefono": "3211234567",
+                "acudiente_parentesco": "MADRE",
             }
         )
         self.assertTrue(user.is_valid(), user.errors)
@@ -271,3 +274,59 @@ class ProfileApiTests(APITestCase):
         self.assertEqual(student_profile.acudiente_cedula, "9876543210")
         self.assertEqual(student_profile.acudiente_telefono, "3112223344")
         self.assertEqual(student_profile.acudiente_email, "diana@example.com")
+
+
+class SecondGuardianTests(TestCase):
+    def _base_student_data(self, **overrides):
+        data = {
+            "cedula": "555666777",
+            "first_name": "Sofia",
+            "last_name": "Luna",
+            "direccion": "Calle 9",
+            "rh": "O+",
+            "role": "STUDENT",
+            "grado": "Septimo",
+            "acudiente_nombre": "Marta Luna",
+            "acudiente_cedula": "800900100",
+            "acudiente_telefono": "3001112233",
+            "acudiente_parentesco": "MADRE",
+        }
+        data.update(overrides)
+        return data
+
+    @patch("accounts.serializers.send_welcome_credentials_email")
+    def test_creates_student_with_second_guardian(self, _mocked_email):
+        serializer = UserSerializer(
+            data=self._base_student_data(
+                acudiente2_nombre="Pedro Luna",
+                acudiente2_cedula="700800900",
+                acudiente2_telefono="3004445566",
+                acudiente2_parentesco="PADRE",
+            )
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        user = serializer.save()
+        profile = StudentProfile.objects.get(user=user)
+        self.assertEqual(profile.acudiente2_nombre, "Pedro Luna")
+        self.assertEqual(profile.acudiente2_parentesco, "PADRE")
+
+    @patch("accounts.serializers.send_welcome_credentials_email")
+    def test_second_guardian_optional_when_empty(self, _mocked_email):
+        serializer = UserSerializer(data=self._base_student_data())
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    @patch("accounts.serializers.send_welcome_credentials_email")
+    def test_partial_second_guardian_requires_core_fields(self, _mocked_email):
+        serializer = UserSerializer(
+            data=self._base_student_data(acudiente2_nombre="Pedro Luna")
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("acudiente2_cedula", serializer.errors)
+
+    @patch("accounts.serializers.send_welcome_credentials_email")
+    def test_invalid_parentesco_rejected(self, _mocked_email):
+        serializer = UserSerializer(
+            data=self._base_student_data(acudiente_parentesco="PRIMO")
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("acudiente_parentesco", serializer.errors)

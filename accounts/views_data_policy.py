@@ -40,8 +40,16 @@ def _build_user_payload(user, request=None):
     }
 
 
-def _save_data_policy_signature(*, user, signature_file):
-    signer = validate_signer_data(user)
+def _parse_signer_index(request):
+    raw = request.data.get("signer_index", 0)
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _save_data_policy_signature(*, user, signature_file, signer_index=0):
+    signer = validate_signer_data(user, signer_index)
 
     validated_signature = validate_image_file(signature_file)
     save_user_signature_image(user=user, signature_file=validated_signature)
@@ -98,7 +106,11 @@ def accept_data_policy(request):
         )
 
     try:
-        document = _save_data_policy_signature(user=user, signature_file=signature_file)
+        document = _save_data_policy_signature(
+            user=user,
+            signature_file=signature_file,
+            signer_index=_parse_signer_index(request),
+        )
     except ValueError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -138,7 +150,11 @@ def update_data_policy_signature(request):
         )
 
     try:
-        document = _save_data_policy_signature(user=user, signature_file=signature_file)
+        document = _save_data_policy_signature(
+            user=user,
+            signature_file=signature_file,
+            signer_index=_parse_signer_index(request),
+        )
     except ValueError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
