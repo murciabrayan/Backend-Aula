@@ -1,0 +1,3 @@
+# Los scripts de shell y los workflows se ejecutan en Linux: siempre LF.
+*.sh  text eol=lf
+*.yml text eol=lf

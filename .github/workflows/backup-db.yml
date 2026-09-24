@@ -1,8 +1,13 @@
 name: Respaldo BD Supabase
 
-# Respaldo automatico de la base de datos de produccion (Supabase).
-# Corre EN LA NUBE de GitHub, sin depender de que ningun PC este encendido.
-# El respaldo se CIFRA antes de guardarse (el repo es publico).
+# Respaldo automatico de produccion. Corre EN LA NUBE de GitHub, sin depender
+# de que ningun PC este encendido. Respalda dos cosas:
+#   1. La base de datos (Supabase), con pg_dump.
+#   2. Todos los archivos subidos (documentos de alumnos, firmas, tareas,
+#      cartas de permiso...), que viven en Cloudinary y NO en la base.
+# Todo se CIFRA antes de guardarse (el repo es publico).
+# Si falla cualquier paso (incluida la descarga de un solo archivo), el job
+# falla y GitHub avisa por correo.
 
 on:
   schedule:
@@ -15,6 +20,9 @@ jobs:
     env:
       RCLONE_CONF: ${{ secrets.RCLONE_CONF }}   # token de Google Drive (opcional)
     steps:
+      - name: Obtener scripts del repositorio
+        uses: actions/checkout@v4
+
       - name: Instalar cliente PostgreSQL 17
         run: |
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
@@ -22,7 +30,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
 
-      - name: Generar respaldo (pg_dump)
+      - name: Generar respaldo de la base (pg_dump)
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
@@ -36,16 +44,27 @@ jobs:
             -f "out/gimnasio_${STAMP}.dump"
           ls -lh out/
 
-      - name: Cifrar respaldo (AES-256)
+      - name: Respaldar archivos subidos (Cloudinary)
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          export DB_URL="$(printf '%s' "$DB_URL" | tr -d '[:space:]')"
+          export PSQL=/usr/lib/postgresql/17/bin/psql
+          export PYTHON=python3
+          bash scripts/respaldar_archivos.sh archivos
+          tar -czf "out/archivos_${STAMP}.tar.gz" -C archivos .
+          ls -lh out/
+
+      - name: Cifrar respaldos (AES-256)
         env:
           PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
           export PASSPHRASE="$(printf '%s' "$PASSPHRASE" | tr -d '\r\n')"
-          openssl enc -aes-256-cbc -pbkdf2 -salt \
-            -in "out/gimnasio_${STAMP}.dump" \
-            -out "out/gimnasio_${STAMP}.dump.enc" \
-            -pass env:PASSPHRASE
-          rm -f "out/gimnasio_${STAMP}.dump"
+          for f in "out/gimnasio_${STAMP}.dump" "out/archivos_${STAMP}.tar.gz"; do
+            openssl enc -aes-256-cbc -pbkdf2 -salt -in "$f" -out "$f.enc" -pass env:PASSPHRASE
+            rm -f "$f"
+          done
+          rm -rf archivos
           ls -lh out/
 
       - name: Guardar en GitHub (artifact cifrado)
@@ -62,3 +81,6 @@ jobs:
           mkdir -p ~/.config/rclone
           printf '%s' "$RCLONE_CONF" | base64 -d > ~/.config/rclone/rclone.conf
           rclone copy out/ gdrive:Backups-Gimnasio --include "*.enc" --log-level INFO
+          # Los paquetes de archivos pesan mas: se conservan los ultimos 30 dias
+          # para no llenar el Drive. Los respaldos de la base se conservan todos.
+          rclone delete gdrive:Backups-Gimnasio --include "archivos_*.tar.gz.enc" --min-age 30d --log-level INFO
