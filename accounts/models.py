@@ -27,6 +27,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('ADMIN', 'Administrador'),
         ('TEACHER', 'Docente'),
         ('STUDENT', 'Estudiante'),
+        ('AULA_DEMO', 'Docente de demostracion del aula'),
     )
     
     email = models.EmailField(unique=True)             # usado para login

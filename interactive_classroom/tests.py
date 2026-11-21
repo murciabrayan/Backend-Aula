@@ -15,6 +15,28 @@ from .models import ActivitySession, Participation, StationCompletion
 
 
 class SessionTests(APITestCase):
+    @override_settings(
+        AULA_DEMO_EXPIRES_AT='2999-01-01T00:00:00Z',
+        ROOT_URLCONF='backend_project.urls',
+    )
+    def test_demo_teacher_is_limited_to_aula_endpoints(self):
+        demo = get_user_model().objects.create_user(
+            email='aula-demo@test.invalid', cedula='aula-demo-test',
+            role='AULA_DEMO', password='Demo-Test-Only9!',
+        )
+        self.auth(demo)
+        self.assertEqual(self.client.get('/api/aula/me/').status_code, 200)
+        self.assertEqual(self.client.get('/api/profile/').status_code, 401)
+
+    @override_settings(AULA_DEMO_EXPIRES_AT='2000-01-01T00:00:00Z')
+    def test_expired_demo_teacher_cannot_use_aula(self):
+        demo = get_user_model().objects.create_user(
+            email='aula-expired@test.invalid', cedula='aula-expired-test',
+            role='AULA_DEMO', password='Demo-Test-Only9!',
+        )
+        self.auth(demo)
+        self.assertEqual(self.client.get('/api/aula/me/').status_code, 403)
+
     @override_settings(AULA_RELEASED_GRADES=['Primero'])
     def test_public_release_gate_allows_first_and_blocks_other_grades(self):
         self.assertEqual(published_activity('partes-del-computador')['grade'], 'Primero')

@@ -6,6 +6,7 @@ DEBUG = False
 # Public release gate. Other grades remain in the codebase so development can
 # continue, but production only creates classroom sessions for these grades.
 AULA_RELEASED_GRADES = env_list("AULA_RELEASED_GRADES", ["Primero"])
+AULA_DEMO_EXPIRES_AT = os.getenv("AULA_DEMO_EXPIRES_AT", "2026-11-23T04:59:59Z")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not SECRET_KEY:

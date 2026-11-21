@@ -2,9 +2,11 @@ import hashlib
 import re
 import unicodedata
 from datetime import timedelta
+from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, serializers
 from rest_framework.exceptions import APIException, AuthenticationFailed, ValidationError
 from rest_framework.response import Response
@@ -18,12 +20,19 @@ def admin(user):
     return user.is_superuser or user.is_staff or user.role == 'ADMIN'
 
 
+def aula_demo_active(user):
+    if user.role != 'AULA_DEMO':
+        return False
+    expires_at = parse_datetime(getattr(settings, 'AULA_DEMO_EXPIRES_AT', ''))
+    return expires_at is None or timezone.now() < expires_at
+
+
 class IsTeacher(permissions.BasePermission):
     message = 'El aula docente requiere una cuenta de profesor o administrador.'
 
     def has_permission(self, request, view):
         user = request.user
-        return bool(user.is_authenticated and user.is_active and (admin(user) or user.role == 'TEACHER'))
+        return bool(user.is_authenticated and user.is_active and (admin(user) or user.role == 'TEACHER' or aula_demo_active(user)))
 
 
 class NoCacheView(APIView):
