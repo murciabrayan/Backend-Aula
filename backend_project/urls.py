@@ -113,6 +113,7 @@ urlpatterns = [
 
     # Landing content
     path('api/landing/', include('landing_content.urls')),
+    path('api/aula/', include('interactive_classroom.urls')),
 
     # Permission letters
     path('api/', include('permission_letters.urls')),

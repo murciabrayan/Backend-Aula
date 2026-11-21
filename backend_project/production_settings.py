@@ -3,6 +3,10 @@ from .settings import *
 
 DEBUG = False
 
+# Public release gate. Other grades remain in the codebase so development can
+# continue, but production only creates classroom sessions for these grades.
+AULA_RELEASED_GRADES = env_list("AULA_RELEASED_GRADES", ["Primero"])
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("DJANGO_SECRET_KEY es obligatoria en produccion.")

@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'attendance',
     'landing_content',
     'permission_letters',
+    'interactive_classroom',
 ]
 
 if os.getenv("CLOUDINARY_URL"):
