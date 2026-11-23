@@ -182,9 +182,9 @@ class SessionTests(APITestCase):
 
     def test_part_sessions_publish_their_own_exercises_and_calculate_progress(self):
         cases = [
-            ('partes-del-computador-monitor', [{'rounds': 6}, {'scenes': 4}, {'levels': 2, 'pairs': 6}]),
-            ('partes-del-computador-mouse', [{'zones': 12}, {'drawings': 2, 'points': 10}, {'actions': 3}, {'levels': 2, 'pieces': 6}]),
-            ('partes-del-computador-keyboard', [{'models': 6}, {'models': 3}, {'levels': 2, 'goal': True, 'key': True}]),
+            ('partes-del-computador-monitor', [{'zones': 12}]),
+            ('partes-del-computador-mouse', [{'drawings': 2, 'points': 10}, {'actions': 3}, {'levels': 2, 'pieces': 6}]),
+            ('partes-del-computador-keyboard', [{'models': 6}]),
             ('escritorio-escritorio', [{'found': 4}, {'actions': 4}]),
             ('escritorio-programas', [{'opened': 2}, {'drawn': True, 'stamps': 2}, {'placed': 4}]),
             ('escritorio-ventanas', [{'actions': 5}, {'found': 2}]),
@@ -205,8 +205,9 @@ class SessionTests(APITestCase):
                 self.participant_auth(credential)
                 endpoint = f"/api/aula/participations/{item['id']}/"
                 last_station = item['activity']['stations'][-1]['id']
-                invalid = self.client.post(endpoint, {'action': 'complete_station', 'station': last_station, 'evidence': {'completed': True, **results[-1]}}, format='json')
-                self.assertEqual(invalid.status_code, 400)
+                if len(results) > 1:
+                    invalid = self.client.post(endpoint, {'action': 'complete_station', 'station': last_station, 'evidence': {'completed': True, **results[-1]}}, format='json')
+                    self.assertEqual(invalid.status_code, 400)
                 for index, evidence in enumerate(results):
                     station = item['activity']['stations'][index]['id']
                     rejected = self.client.post(endpoint, {'action': 'complete_station', 'station': station, 'evidence': {'completed': False, **evidence}}, format='json')
@@ -223,13 +224,13 @@ class SessionTests(APITestCase):
         from .content import validated_evidence
         from rest_framework.exceptions import ValidationError
         activity = published_activity('partes-del-computador-mouse')
-        self.assertEqual([x['id'] for x in activity['stations']], ['mouse-1', 'mouse-2', 'mouse-3', 'mouse-4'])
+        self.assertEqual([x['id'] for x in activity['stations']], ['mouse-1', 'mouse-2', 'mouse-3'])
         with self.assertRaises(ValidationError):
             validated_evidence('mouse-1', {'completed': True, 'zones': 12}, 'INF-1-C01-monitor-v1')
         with self.assertRaises(ValidationError):
             validated_evidence('mouse-1', {'completed': True, 'zones': True}, activity['version'])
         activity['stations'].clear()
-        self.assertEqual(len(published_activity('partes-del-computador-mouse')['stations']), 4)
+        self.assertEqual(len(published_activity('partes-del-computador-mouse')['stations']), 3)
         self.assertEqual(published_activity('partes-del-computador')['version'], 'INF-1-C01-final-v3')
         self.assertEqual(published_activity('escritorio')['version'], 'INF-1-C02-final-v1')
 

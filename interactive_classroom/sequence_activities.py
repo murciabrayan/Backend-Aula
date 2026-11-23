@@ -16,7 +16,7 @@ for slug, version, title, part_id, challenges in [
     ]),
 ]:
     stations = [{'id': f'{part_id or "secuencia"}-{i+1}', 'title': name} for i, (name, _) in enumerate(challenges)]
-    data = {'lesson': slug, 'version': version, 'title': f'Pasos e instrucciones · {title}' if part_id else 'Pasos e instrucciones', 'grade': 'Primero', 'activity_title': f'Actividad: {title}' if part_id else title, 'stations': stations}
+    data = {'lesson': slug, 'version': version, 'title': f'Algoritmos · {title}' if part_id else 'Algoritmos', 'grade': 'Primero', 'activity_title': f'Actividad: {title}' if part_id else title, 'stations': stations}
     if part_id:
         data.update(scope='part', parent_lesson='instrucciones', part=part_id, part_title=title)
     SEQUENCE_ACTIVITIES[slug] = data

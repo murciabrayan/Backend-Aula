@@ -23,7 +23,7 @@ for slug, part, title, challenges in [
 ]:
     version = f'INF-1-C04-{part or "final"}-v1'
     stations = [{'id': f'{part or "tecnologia"}-{i+1}', 'title': name} for i, (name, _) in enumerate(challenges)]
-    data = {'lesson': slug, 'version': version, 'title': f'La tecnología en nuestra vida · {title}' if part else 'La tecnología en nuestra vida', 'grade': 'Primero', 'activity_title': f'Actividad: {title}' if part else title, 'stations': stations}
+    data = {'lesson': slug, 'version': version, 'title': f'Tecnología y evolución · {title}' if part else 'Tecnología y evolución', 'grade': 'Primero', 'activity_title': f'Actividad: {title}' if part else title, 'stations': stations}
     if part:
         data.update(scope='part', parent_lesson='tecnologia', part=part, part_title=title)
     TECHNOLOGY_ACTIVITIES[slug] = data

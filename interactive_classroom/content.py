@@ -10,6 +10,7 @@ from .programming_activities import PROGRAMMING_ACTIVITIES, PROGRAMMING_RULES
 from .first_path_activities import FIRST_PATH_ACTIVITIES, FIRST_PATH_RULES
 from .second_grade_activities import SECOND_GRADE_ACTIVITIES, SECOND_GRADE_RULES
 from .third_grade_activities import THIRD_GRADE_ACTIVITIES, THIRD_GRADE_RULES
+from .explorer_activities import EXPLORER_ACTIVITIES, EXPLORER_RULES
 
 
 LESSON = 'partes-del-computador'
@@ -40,7 +41,7 @@ DESKTOP_ACTIVITY = {
         {'id': 'desktop-project', 'title': 'Crea, guarda y recupera'},
     ],
 }
-PUBLISHED = {LESSON: ACTIVITY, 'escritorio': DESKTOP_ACTIVITY, **PART_ACTIVITIES, **SEQUENCE_ACTIVITIES, **TECHNOLOGY_ACTIVITIES, **PROJECT_ACTIVITIES, **PROGRAMMING_ACTIVITIES, **FIRST_PATH_ACTIVITIES, **SECOND_GRADE_ACTIVITIES, **THIRD_GRADE_ACTIVITIES}
+PUBLISHED = {LESSON: ACTIVITY, 'escritorio': DESKTOP_ACTIVITY, **EXPLORER_ACTIVITIES, **PART_ACTIVITIES, **SEQUENCE_ACTIVITIES, **TECHNOLOGY_ACTIVITIES, **PROJECT_ACTIVITIES, **PROGRAMMING_ACTIVITIES, **FIRST_PATH_ACTIVITIES, **SECOND_GRADE_ACTIVITIES, **THIRD_GRADE_ACTIVITIES}
 
 
 def published_activity(lesson):
@@ -70,7 +71,7 @@ def validated_evidence(station, value, version=VERSION):
         'desktop-windows': {'actions': 5},
         'desktop-project': {'drawn': True, 'stamps': 2, 'titled': True, 'saved': True, 'recovered': True},
     }}
-    expected = {**rules, **PART_RULES, **SEQUENCE_RULES, **TECHNOLOGY_RULES, **PROJECT_RULES, **PROGRAMMING_RULES, **FIRST_PATH_RULES, **SECOND_GRADE_RULES, **THIRD_GRADE_RULES}.get(version, {}).get(station)
+    expected = {**rules, **EXPLORER_RULES, **PART_RULES, **SEQUENCE_RULES, **TECHNOLOGY_RULES, **PROJECT_RULES, **PROGRAMMING_RULES, **FIRST_PATH_RULES, **SECOND_GRADE_RULES, **THIRD_GRADE_RULES}.get(version, {}).get(station)
     if not expected or any(type(value.get(k)) is not type(v) or value.get(k) != v for k, v in expected.items()):
         raise ValidationError({'evidence': 'El desafío todavía no tiene todos sus objetivos completos.'})
     return expected.copy()

@@ -2,7 +2,7 @@
 
 
 def part(parent, part_id, version, title, stations):
-    parent_title = 'Partes del computador' if parent == 'partes-del-computador' else 'El escritorio y sus iconos'
+    parent_title = 'Uso del teclado y del mouse' if parent == 'partes-del-computador' else 'El escritorio y sus iconos'
     activity = {
         'lesson': f'{parent}-{part_id}', 'version': version, 'scope': 'part',
         'parent_lesson': parent, 'part': part_id, 'part_title': title,
@@ -34,6 +34,17 @@ for args in [
     ]),
     ('escritorio', 'ventanas', 'INF-1-C02-ventanas-v1', 'Ventanas y trabajos', [
         ('Cada control tiene una función', {'actions': 5}), ('Encuentra el archivo', {'found': 2}),
+    ]),
+    ('partes-del-computador', 'monitor', 'INF-1-MK-mouse-v2', 'Mouse', [
+        ('Descubre el dibujo', {'zones': 12}),
+    ]),
+    ('partes-del-computador', 'mouse', 'INF-1-MK-mouse2-v2', 'Mouse: segunda parte', [
+        ('Dibujamos punto por punto', {'drawings': 2, 'points': 10}),
+        ('Cuidemos el jardín', {'actions': 3}),
+        ('Reconstruimos la ilustración', {'levels': 2, 'pieces': 6}),
+    ]),
+    ('partes-del-computador', 'keyboard', 'INF-1-MK-keyboard-v2', 'Teclado', [
+        ('Encuentra la tecla', {'models': 6}),
     ]),
 ]:
     activity, rules = part(*args)

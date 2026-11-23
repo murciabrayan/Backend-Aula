@@ -4,7 +4,7 @@ PROGRAMMING_ACTIVITIES = {}
 PROGRAMMING_RULES = {}
 
 for slug, suffix, part, title, challenges in [
-    ('programacion-flechas', 'final', None, 'Programamos con bloques y flechas', [
+    ('programacion-flechas', 'final', None, 'Bloques de dirección', [
         ('Predice la llegada', {'solved': 1, 'executed': True}),
         ('Programa el puente', {'solved': 1, 'delivered': True}),
         ('Recoge y entrega', {'solved': 1, 'collected': True, 'crossed': True}),
